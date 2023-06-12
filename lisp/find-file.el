@@ -215,10 +215,10 @@ matching extension or name (e.g., `.cc' yields `.hh').
 
 This alist should be set by the major mode.
 
-Note: if an element of the alist names a FUNCTION as its cdr, that
-function must return a non-nil list of file-names.  It cannot
-return nil, nor can it signal in any way a failure to find a suitable
-list of file names."
+Note: if an element of the alist names a FUNCTION as its cadr,
+that function must return a non-nil list of file-names.  It
+cannot return nil, nor can it signal in any way a failure to find
+a suitable list of file names."
   :type '(choice (repeat (list regexp (choice (repeat string) function)))
 		 symbol))
 
@@ -469,7 +469,7 @@ If optional IN-OTHER-WINDOW is non-nil, find the file in another window."
 
         ;; if we have a function to generate new names,
         ;; invoke it with the name of the current file
-        (if (and (atom action) (fboundp action))
+        (if (functionp action)
             (setq suffixes (funcall action (ff-buffer-file-name))
                   match (cons (car match) (list suffixes))
                   stub nil
