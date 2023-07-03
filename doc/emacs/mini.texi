@@ -391,7 +391,7 @@ used with the completion list:
 @findex minibuffer-choose-completion
 @item M-@key{DOWN}
 @itemx M-@key{UP}
-While in the minibuffer, @kbd{M-@key{DOWN}}
+While in the minibuffer or in the completion list buffer, @kbd{M-@key{DOWN}}
 (@code{minibuffer-next-completion} and @kbd{M-@key{UP}}
 (@code{minibuffer-previous-completion}) navigate through the
 completions and displayed in the completions buffer.  When
