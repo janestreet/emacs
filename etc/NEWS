@@ -92,6 +92,13 @@ This is a bug-fix release with no new features.
 
 * Changes in Specialized Modes and Packages in Emacs 29.2
 
++++
+*** Which Function Mode can now display function names on the header line.
+The new user option 'which-func-display' allows choosing where the
+function name is displayed.  The default is 'mode' to display in the
+mode line.  'header' will display in the header line;
+'mode-and-header' displays in both the header line and mode line.
+
 ** Tramp
 
 *** New user option 'tramp-show-ad-hoc-proxies'.
