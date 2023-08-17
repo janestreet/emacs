@@ -3118,6 +3118,13 @@ the Rust language.
 An optional major mode based on the tree-sitter library for editing
 programs in the Ruby language.
 
+** Project
+
+*** New user option 'project-file-history-behavior'.
+Customizing it to 'relative' makes commands like 'project-find-file'
+and 'project-find-dir' display previous history entries relative to
+the current project.
+
 
 * Incompatible Lisp Changes in Emacs 29.1
 
