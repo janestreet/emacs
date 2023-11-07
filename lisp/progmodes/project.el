@@ -1773,7 +1773,13 @@ With some possible metadata (to be decided).")
                                 (expand-file-name name)))))
                     project--list)
             (current-buffer)))
-      (write-region nil nil filename nil 'silent))))
+      ;; If project-list-file is locked by some other Emacs, fail to
+      ;; write rather than prompting the user.
+      (ignore-error file-locked
+        (cl-letf (((symbol-function 'ask-user-about-lock)
+                   (lambda (file opponent)
+                     (signal 'file-locked (list file opponent)))))
+          (write-region nil nil filename nil 'silent))))))
 
 (defun project--remember-dir (root &optional no-write)
   "Add project root ROOT to the front of the project list.
