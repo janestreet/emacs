@@ -2644,7 +2644,10 @@ read_char (int commandflag, Lisp_Object map,
       executing_kbd_macro_index++;
 
       goto from_macro;
-    }
+    } else
+    /* Getting input from a keyboard macro doesn't count as
+       interacting with the user.  */
+    barf_if_interaction_inhibited ();
 
   if (!NILP (unread_switch_frame))
     {

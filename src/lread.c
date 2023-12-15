@@ -950,8 +950,6 @@ If `inhibit-interaction' is non-nil, this function will signal an
 {
   Lisp_Object val;
 
-  barf_if_interaction_inhibited ();
-
   if (! NILP (prompt))
     {
       cancel_echoing ();
@@ -988,8 +986,6 @@ If `inhibit-interaction' is non-nil, this function will signal an
 `inhibited-interaction' error.  */)
   (Lisp_Object prompt, Lisp_Object inherit_input_method, Lisp_Object seconds)
 {
-  barf_if_interaction_inhibited ();
-
   if (! NILP (prompt))
     {
       cancel_echoing ();
@@ -1026,8 +1022,6 @@ If `inhibit-interaction' is non-nil, this function will signal an
 (Lisp_Object prompt, Lisp_Object inherit_input_method, Lisp_Object seconds)
 {
   Lisp_Object val;
-
-  barf_if_interaction_inhibited ();
 
   if (! NILP (prompt))
     {
