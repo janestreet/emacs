@@ -6185,14 +6185,14 @@ terminate any keyboard macro currently executing.  */)
 void
 bitch_at_user (void)
 {
-  if (noninteractive)
-    putchar (07);
-  else if (!INTERACTIVE)  /* Stop executing a keyboard macro.  */
+  if (!NILP (Vexecuting_kbd_macro))  /* Stop executing a keyboard macro.  */
     {
       const char *msg
 	= "Keyboard macro terminated by a command ringing the bell";
       Fsignal (Quser_error, list1 (build_string (msg)));
     }
+  else if (noninteractive)
+    putchar (07);
   else
     ring_bell (XFRAME (selected_frame));
 }
