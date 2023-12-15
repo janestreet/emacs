@@ -316,6 +316,9 @@ read_minibuf_noninteractive (Lisp_Object prompt, bool expflag,
   struct emacs_tty etty;
   bool etty_valid UNINIT;
 
+  /* inhibit-interaction also prevents reading from stdin. */
+  barf_if_interaction_inhibited ();
+
   /* Check, whether we need to suppress echoing.  */
   if (CHARACTERP (Vread_hide_char))
     hide_char = XFIXNAT (Vread_hide_char);
@@ -1342,8 +1345,6 @@ and some related functions, which use zero-indexing for POSITION.  */)
   (Lisp_Object prompt, Lisp_Object initial_contents, Lisp_Object keymap, Lisp_Object read, Lisp_Object hist, Lisp_Object default_value, Lisp_Object inherit_input_method)
 {
   Lisp_Object histvar, histpos, val;
-
-  barf_if_interaction_inhibited ();
 
   CHECK_STRING (prompt);
   if (NILP (keymap))
