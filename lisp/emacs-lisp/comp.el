@@ -3908,9 +3908,9 @@ session."
         ;; Remove the old eln instead of copying the new one into it
         ;; to get a new inode and prevent crashes in case the old one
         ;; is currently loaded.
-        (t (delete-file oldfile)
-           (when newfile
-             (rename-file newfile oldfile)))))
+        (t (if newfile
+               (rename-file newfile oldfile t)
+             (delete-file oldfile)))))
 
 (defvar comp-files-queue ()
   "List of Emacs Lisp files to be compiled.")
