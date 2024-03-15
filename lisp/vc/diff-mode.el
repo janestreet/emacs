@@ -229,6 +229,8 @@ and hunk-based syntax highlighting otherwise as a fallback."
      :help "Apply the current hunk to the source file and go to the next"]
     ["Test applying hunk"	diff-test-hunk
      :help "See whether it's possible to apply the current hunk"]
+    ["Apply all hunks"		diff-apply-buffer
+     :help "Apply all hunks in the current diff buffer"]
     ["Apply diff with Ediff"	diff-ediff-patch
      :help "Call `ediff-patch-file' on the current buffer"]
     ["Create Change Log entries" diff-add-change-log-entries-other-window
