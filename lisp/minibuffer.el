@@ -2463,9 +2463,10 @@ The candidate will still be chosen by `choose-completion' unless
              (prefix (unless (zerop base-size) (substring string 0 base-size)))
              (base-prefix (buffer-substring (minibuffer--completion-prompt-end)
                                             (+ start base-size)))
-             (base-suffix (completion-base-suffix start end
-                                                  minibuffer-completion-table
-                                                  minibuffer-completion-predicate))
+             (base-suffix (concat (completion-base-suffix start end
+                                                          minibuffer-completion-table
+                                                          minibuffer-completion-predicate)
+                                  (buffer-substring end (point-max))))
              (all-md (completion--metadata (buffer-substring-no-properties
                                             start (point))
                                            base-size md
