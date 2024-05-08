@@ -3727,9 +3727,25 @@ Like `internal-complete-buffer', but removes BUFFER from the completion list."
    (length string)
    (car (completion-boundaries string table pred ""))))
 
+(defcustom completion-emacs22-use-pcm nil
+  "If non-nil, the emacs22 completion style performs partial-completion.
+
+This means that in addition to ignoring the text after point
+during completion, the text before point is expanded following
+the partial-completion rules.")
+
 (defun completion-emacs22-try-completion (string table pred point)
-  (let ((suffix (substring string point))
-        (completion (try-completion (substring string 0 point) table pred)))
+  (let* ((suffix (substring string point))
+         (prefix (substring string 0 point))
+         (completion
+          (if completion-emacs22-use-pcm
+              (let ((ret (completion-pcm-try-completion prefix table pred point)))
+                (if (consp ret)
+                    ;; Ignore any changes to point; that would change
+                    ;; what text we're ignoring
+                    (car ret)
+                  ret))
+            (try-completion prefix table pred))))
     (cond
      ((eq completion t)
       (if (equal "" suffix)
@@ -3754,10 +3770,12 @@ Like `internal-complete-buffer', but removes BUFFER from the completion list."
 
 (defun completion-emacs22-all-completions (string table pred point)
   (let ((beforepoint (substring string 0 point)))
-    (completion-hilit-commonality
-     (all-completions beforepoint table pred)
-     point
-     (car (completion-boundaries beforepoint table pred "")))))
+    (if completion-emacs22-use-pcm
+        (completion-pcm-all-completions beforepoint table pred point)
+      (completion-hilit-commonality
+       (all-completions beforepoint table pred)
+       point
+       (car (completion-boundaries beforepoint table pred ""))))))
 
 ;;; Basic completion.
 
@@ -3864,10 +3882,13 @@ the commands start with a \"-\" or a SPC."
 	     (setq trivial nil)))
 	 trivial)))
 
-(defun completion-pcm--string->pattern (string &optional point)
+(defun completion-pcm--string->pattern (string &optional point startglob)
   "Split STRING into a pattern.
 A pattern is a list where each element is either a string
-or a symbol, see `completion-pcm--merge-completions'."
+or a symbol, see `completion-pcm--merge-completions'.
+
+If STARTGLOB is non-nil, the pattern will start with the symbol
+`prefix' if it would otherwise start with a string."
   (if (and point (< point (length string)))
       (let ((prefix (substring string 0 point))
             (suffix (substring string point)))
@@ -3914,7 +3935,10 @@ or a symbol, see `completion-pcm--merge-completions'."
       (when (> (length string) p0)
         (if pending (push pending pattern))
         (push (substring string p0) pattern))
-      (nreverse pattern))))
+      (setq pattern (nreverse pattern))
+      (when (and startglob (stringp (car pattern)))
+        (push 'prefix pattern))
+      pattern)))
 
 (defun completion-pcm--optimize-pattern (p)
   ;; Remove empty strings in a separate phase since otherwise a ""
@@ -4207,11 +4231,12 @@ see) for later lazy highlighting."
    (t completions)))
 
 (defun completion-pcm--find-all-completions (string table pred point
-                                                    &optional filter)
+                                                    &optional filter startglob)
   "Find all completions for STRING at POINT in TABLE, satisfying PRED.
 POINT is a position inside STRING.
 FILTER is a function applied to the return value, that can be used, e.g. to
-filter out additional entries (because TABLE might not obey PRED)."
+filter out additional entries (because TABLE might not obey PRED).
+STARTGLOB controls whether there's a leading glob in the pattern."
   (unless filter (setq filter 'identity))
   (let* ((beforepoint (substring string 0 point))
          (afterpoint (substring string point))
@@ -4222,7 +4247,7 @@ filter out additional entries (because TABLE might not obey PRED)."
     (setq string (substring string (car bounds) (+ point (cdr bounds))))
     (let* ((relpoint (- point (car bounds)))
            (pattern (completion-pcm--optimize-pattern
-                     (completion-pcm--string->pattern string relpoint)))
+                     (completion-pcm--string->pattern string relpoint startglob)))
            (all (condition-case-unless-debug err
                     (funcall filter
                              (completion-pcm--all-completions
@@ -4300,9 +4325,9 @@ filter out additional entries (because TABLE might not obey PRED)."
           (signal (car firsterror) (cdr firsterror))
         (list pattern all prefix suffix)))))
 
-(defun completion-pcm-all-completions (string table pred point)
+(defun completion-pcm-all-completions (string table pred point &optional startglob)
   (pcase-let ((`(,pattern ,all ,prefix ,_suffix)
-               (completion-pcm--find-all-completions string table pred point)))
+               (completion-pcm--find-all-completions string table pred point nil startglob)))
     (when all
       (nconc (completion-pcm--hilit-commonality pattern all)
              (length prefix)))))
@@ -4478,16 +4503,24 @@ the same set of elements."
                     merged (max 0 (1- (length merged))) suffix))
       (cons (concat prefix merged suffix) (+ newpos (length prefix)))))))
 
-(defun completion-pcm-try-completion (string table pred point)
+(defun completion-pcm-try-completion (string table pred point &optional startglob)
   (pcase-let ((`(,pattern ,all ,prefix ,suffix)
                (completion-pcm--find-all-completions
                 string table pred point
                 (if minibuffer-completing-file-name
-                    'completion-pcm--filename-try-filter))))
+                    'completion-pcm--filename-try-filter)
+                startglob)))
     (completion-pcm--merge-try pattern all prefix suffix)))
 
 ;;; Substring completion
 ;; Mostly derived from the code of `basic' completion.
+
+(defcustom completion-substring-use-pcm nil
+  "If non-nil, the substring completion style performs partial-completion.
+
+This means that in addition to expanding at the start of the
+completion region, all text will be expanded following the
+partial-completion rules.")
 
 (defun completion-substring--all-completions
     (string table pred point &optional transform-pattern-fn)
@@ -4513,20 +4546,24 @@ that is non-nil."
     (list all pattern prefix suffix (car bounds))))
 
 (defun completion-substring-try-completion (string table pred point)
-  (pcase-let ((`(,all ,pattern ,prefix ,suffix ,_carbounds)
-               (completion-substring--all-completions
-                string table pred point)))
-    (if minibuffer-completing-file-name
-        (setq all (completion-pcm--filename-try-filter all)))
-    (completion-pcm--merge-try pattern all prefix suffix)))
+  (if completion-substring-use-pcm
+      (completion-pcm-try-completion string table pred point t)
+    (pcase-let ((`(,all ,pattern ,prefix ,suffix ,_carbounds)
+                 (completion-substring--all-completions
+                  string table pred point)))
+      (if minibuffer-completing-file-name
+          (setq all (completion-pcm--filename-try-filter all)))
+      (completion-pcm--merge-try pattern all prefix suffix))))
 
 (defun completion-substring-all-completions (string table pred point)
-  (pcase-let ((`(,all ,pattern ,prefix ,_suffix ,_carbounds)
-               (completion-substring--all-completions
-                string table pred point)))
-    (when all
-      (nconc (completion-pcm--hilit-commonality pattern all)
-             (length prefix)))))
+  (if completion-substring-use-pcm
+      (completion-pcm-all-completions string table pred point t)
+    (pcase-let ((`(,all ,pattern ,prefix ,_suffix ,_carbounds)
+                 (completion-substring--all-completions
+                  string table pred point)))
+      (when all
+        (nconc (completion-pcm--hilit-commonality pattern all)
+               (length prefix))))))
 
 ;;; "flex" completion, also known as flx/fuzzy/scatter completion
 ;; Completes "foo" to "frodo" and "farfromsober"
