@@ -3650,13 +3650,13 @@ REGEXP should use constructs supported by your local `grep' command."
   (interactive "sSearch marked files (regexp): ")
   (require 'grep)
   (require 'xref)
-  (defvar grep-find-ignored-files)
   (declare-function rgrep-find-ignored-directories "grep" (dir))
+  (declare-function grep-find-ignored-files "grep" (dir))
   (let* ((marks (dired-get-marked-files nil nil nil nil t))
          (ignores (nconc (mapcar
                           #'file-name-as-directory
                           (rgrep-find-ignored-directories default-directory))
-                         grep-find-ignored-files))
+                         (grep-find-ignored-files default-directory)))
          (fetcher
           (lambda ()
             (let (files xrefs)
