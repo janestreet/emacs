@@ -1408,13 +1408,10 @@ to indicate whether the grep should be case sensitive or not."
     (grep-expand-template
      grep-find-template
      regexp
-     files
+     (concat files (when file-excl (concat (shell-quote-argument "!" grep-quoting-style) file-excl)))
      dir
-     (concat (when dir-excl
-               (concat "-type d " dir-excl " -prune -o "))
-             (when file-excl
-               (concat (shell-quote-argument "!" grep-quoting-style) " -type d "
-                       file-excl " -prune -o "))))))
+     (when dir-excl
+       (concat "-type d " dir-excl " -prune -o ")))))
 
 (defun grep-find-toggle-abbreviation ()
   "Toggle showing the hidden part of rgrep/lgrep/zrgrep command line."
