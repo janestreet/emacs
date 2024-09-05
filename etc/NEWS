@@ -62,6 +62,11 @@ more details.
 
 This is a bug-fix release with no new features.
 
+** Project
+
+New command `project-find-file-in-root` which is equivalent to running
+‘project-any-command’ with ‘find-file’.
+
 
 * Changes in Specialized Modes and Packages in Emacs 29.2
 
