@@ -466,6 +466,8 @@ are predefined:
 (defvar xref--history (xref--make-xref-history)
   "(BACKWARD-STACK . FORWARD-STACK) of markers to visited Xref locations.")
 
+(defvar xref--window-history (make-hash-table :weakness t :test 'eq))
+
 (defun xref-global-history (&optional new-value)
   "Return the xref history that is global for the current Emacs session.
 
@@ -500,10 +502,12 @@ Override existing value with NEW-VALUE if NEW-VALUE is set."
     (unless (equal m (cadr history))
       (push m (cdr history)))))
 
-(defun xref-push-marker-stack (&optional m)
+(defun xref-push-marker-stack (&optional m orig-window)
   "Add point M (defaults to `point-marker') to the marker stack.
 Erase the stack slots following this one."
-  (xref--push-backward (or m (point-marker)))
+  (setq m (or m (point-marker)))
+  (xref--push-backward m)
+  (puthash m orig-window xref--window-history)
   (let ((history (xref--get-history)))
     (dolist (mk (cdr history))
       (set-marker mk nil nil))
@@ -520,8 +524,12 @@ To undo, use \\[xref-go-forward]."
   (let ((history (xref--get-history)))
     (if (null (car history))
         (user-error "At start of xref history")
-      (let ((marker (pop (car history))))
+      (let* ((marker (pop (car history)))
+             (window (gethash marker xref--window-history)))
         (xref--push-forward (point-marker))
+        (when (window-live-p window)
+          (select-window window))
+        ;; Maybe pop the quit-restore parameter a few times instead.
         (switch-to-buffer (or (marker-buffer marker)
                               (user-error "The marked buffer has been deleted")))
         (goto-char (marker-position marker))
@@ -535,8 +543,11 @@ To undo, use \\[xref-go-forward]."
   (let ((history (xref--get-history)))
     (if (null (cdr history))
         (user-error "At end of xref history")
-      (let ((marker (pop (cdr history))))
+      (let* ((marker (pop (cdr history)))
+             (window (gethash marker xref--window-history)))
         (xref--push-backward (point-marker))
+        (when (window-live-p window)
+          (select-window window))
         (switch-to-buffer (or (marker-buffer marker)
                               (user-error "The marked buffer has been deleted")))
         (goto-char (marker-position marker))
@@ -612,6 +623,7 @@ If SELECT is non-nil, select the target window."
          (buf (marker-buffer marker)))
     (cl-ecase action
       ((nil)  (switch-to-buffer buf))
+      (reuse-window (pop-to-buffer buf '(display-buffer-reuse-window)))
       (window (pop-to-buffer buf t))
       (frame  (let ((pop-up-frames t)) (pop-to-buffer buf t))))
     (xref--goto-char marker))
@@ -1476,31 +1488,33 @@ The meanings of both arguments are the same as documented in
                     xrefs
                   (setq xrefs 'called-already)))))))
   (let ((cb (current-buffer))
+        (cw (selected-window))
         (pt (point)))
     (prog1
         (funcall xref-show-xrefs-function fetcher
                  `((window . ,(selected-window))
                    (display-action . ,display-action)
                    (auto-jump . ,xref-auto-jump-to-first-xref)))
-      (xref--push-markers cb pt))))
+      (xref--push-markers cb pt cw))))
 
 (defun xref--show-defs (xrefs display-action)
   (let ((cb (current-buffer))
+        (cw (selected-window))
         (pt (point)))
     (prog1
         (funcall xref-show-definitions-function xrefs
                  `((window . ,(selected-window))
                    (display-action . ,display-action)
                    (auto-jump . ,xref-auto-jump-to-first-definition)))
-      (xref--push-markers cb pt))))
+      (xref--push-markers cb pt cw))))
 
-(defun xref--push-markers (buf pt)
+(defun xref--push-markers (buf pt orig-window)
   (when (buffer-live-p buf)
     (save-excursion
       (with-no-warnings (set-buffer buf))
       (goto-char pt)
       (unless (region-active-p) (push-mark nil t))
-      (xref-push-marker-stack))))
+      (xref-push-marker-stack nil orig-window))))
 
 (defun xref--prompt-p (command)
   (or (eq xref-prompt-for-identifier t)
@@ -1592,7 +1606,7 @@ buffer where the user can select from the list.
 
 Use \\[xref-go-back] to return back to where you invoked this command."
   (interactive (list (xref--read-identifier "Find definitions of: ")))
-  (xref--find-definitions identifier nil))
+  (xref--find-definitions identifier 'reuse-window))
 
 ;;;###autoload
 (defun xref-find-definitions-other-window (identifier)
