@@ -2928,6 +2928,17 @@ Definition (".sld") files.
 Imenu now lists the members directly nested in R6RS Scheme libraries
 ('library') and R7RS libraries ('define-library').
 
+** Xref
+
+The commands that jump to some location use 'display-buffer' and specify
+the category 'xref-jump'.  As a result you can customize how the
+destination window is chosen using 'display-buffer-alist'.  Example:
+
+  (setq display-buffer-alist '(((category . xref)
+                                (display-buffer-reuse-window
+                                 display-buffer-use-some-window)
+                                (some-window . mru))))
+
 
 * New Modes and Packages in Emacs 29.1
 
