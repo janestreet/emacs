@@ -108,6 +108,12 @@ escaping (to protect them from the shell).
 New command `project-find-file-in-root` which is equivalent to running
 ‘project-any-command’ with ‘find-file’.
 
+** When run inside xterm, 'xterm-mouse-mode' is turned on by default.
+This means that the mouse will work by default inside xterm terminals.
+If your terminal does not behave properly with xterm mouse tracking
+enabled, you can disable mouse tracking by putting '(xterm-mouse-mode
+-1)' in your init file.
+
 
 * Incompatible Changes in Emacs 30.1
 
