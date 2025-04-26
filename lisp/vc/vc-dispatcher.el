@@ -698,9 +698,9 @@ editing!"
   (when vc-dir-buffers
     (vc-dir-resynch-file file)))
 
-(defun vc-buffer-sync (&optional not-urgent)
+(defun vc-buffer-sync (&optional not-essential)
   "Make sure the current buffer and its working file are in sync.
-NOT-URGENT means it is ok to continue if the user says not to save."
+NOT-ESSENTIAL means it is okay to continue if the user says not to save."
   (let (missing)
     (when (cond
            ((buffer-modified-p))
@@ -713,7 +713,7 @@ NOT-URGENT means it is ok to continue if the user says not to save."
                                     "is missing on disk"
                                   "modified"))))
           (save-buffer)
-        (unless not-urgent
+        (unless not-essential
           (error "Aborted"))))))
 
 ;; Command closures
