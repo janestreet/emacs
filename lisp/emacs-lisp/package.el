@@ -996,8 +996,7 @@ untar into a directory named DIR; otherwise, signal an error."
       ('dir
        (make-directory pkg-dir t)
        (let ((file-list
-              (directory-files
-               default-directory 'full "\\`[^.].*\\.el\\'" 'nosort)))
+              (directory-files-recursively default-directory "" nil)))
          (dolist (source-file file-list)
            (let ((target-el-file
                   (expand-file-name (file-name-nondirectory source-file) pkg-dir)))
@@ -1261,7 +1260,7 @@ The return result is a `package-desc'."
         (with-temp-buffer
           (insert-file-contents desc-file)
           (package--read-pkg-desc 'dir))
-      (let ((files (directory-files default-directory t "\\.el\\'" t))
+      (let ((files (directory-files-recursively default-directory "\\.el\\'"))
             info)
         (while files
           (with-temp-buffer
