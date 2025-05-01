@@ -1290,6 +1290,7 @@ Amongst another things, it parses the command-line arguments."
   (setq before-init-time (current-time)
 	after-init-time nil
         command-line-default-directory default-directory)
+  (setq load-path-filter-function #'load-path-filter-cache-directory-files)
 
   ;; Force recomputation, in case it was computed during the dump.
   (setq abbreviated-home-dir nil)
