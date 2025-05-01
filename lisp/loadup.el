@@ -167,6 +167,7 @@
 (load "cus-face")
 (load "faces")  ; after here, `defface' may be used.
 
+(load "emacs-lisp/regexp-opt")
 
 ;; We don't want to store loaddefs.el in the repository because it is
 ;; a generated file; but it is required in order to compile the lisp files.
@@ -305,8 +306,6 @@
 (if (fboundp 'x-create-frame)
     (progn
       (load "fringe")
-      ;; Needed by `imagemagick-register-types'
-      (load "emacs-lisp/regexp-opt")
       (load "image")
       (load "international/fontset")
       (load "dnd")
