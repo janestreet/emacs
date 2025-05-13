@@ -207,7 +207,7 @@ Another is that undo information is not kept."
     (setq-local vc-parent-buffer camefrom)
     (setq-local vc-parent-buffer-name
                 (concat " from " (buffer-name camefrom)))
-    (setq default-directory olddir)
+    (set-buffer-local-toplevel-value 'default-directory olddir)
     (let ((buffer-undo-list t)
           (inhibit-read-only t))
       (erase-buffer))))
