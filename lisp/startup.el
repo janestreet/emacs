@@ -1180,11 +1180,14 @@ This function is called from `load' via `load-path-filter-function'."
         (let ((completion-regexp-list nil))
           (seq-filter
            (lambda (dir)
-             (when (file-directory-p dir)
-               (try-completion
-                file
-                (with-memoization (gethash dir ht)
-                  (directory-files dir nil rx t)))))
+             (let ((contents
+                    (with-memoization (gethash dir ht)
+                      (condition-case ret
+                          (directory-files dir nil rx t)
+                        (error 'unknown)
+                        (:success (cons 'present ret))))))
+               (or (eq contents 'unknown)
+                   (try-completion file (cdr contents)))))
            path))))))
 
 (defcustom user-lisp-auto-scrape t
