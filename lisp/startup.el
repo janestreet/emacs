@@ -1171,11 +1171,14 @@ Caches directory contents in `load-path-filter--cache'."
                (concat (regexp-opt suffixes) "\\'")
                (make-hash-table :test #'equal)))))
        (lambda (dir)
-         (when (file-directory-p dir)
-           (try-completion
-            file
-            (with-memoization (gethash dir (cdr rx-and-ht))
-              (directory-files dir nil (car rx-and-ht) t))))))
+         (let ((contents
+                (with-memoization (gethash dir (cdr rx-and-ht))
+                  (condition-case ret
+                      (directory-files dir nil (car rx-and-ht) t)
+                    (error 'unknown)
+                    (:success (cons 'present ret))))))
+           (or (eq contents 'unknown)
+               (try-completion file (cdr contents))))))
      path)))
 
 (defun command-line ()
