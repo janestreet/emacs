@@ -1170,6 +1170,8 @@ It is based on `log-edit-mode', and has Hg-specific extensions.")
 
 (autoload 'vc-wait-for-process-before-save "vc-dispatcher")
 
+(defalias 'vc-hg-async-checkins #'always)
+
 (defun vc-hg-checkin (files comment &optional _rev)
   "Hg-specific version of `vc-backend-checkin'.
 REV is ignored."

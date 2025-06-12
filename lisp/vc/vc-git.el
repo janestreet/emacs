@@ -1086,6 +1086,8 @@ It is based on `log-edit-mode', and has Git-specific extensions."
        ("Sign-Off" . ,(boolean-arg-fn "--signoff")))
      comment)))
 
+(defalias 'vc-git-async-checkins #'always)
+
 (defun vc-git-checkin (files comment &optional _rev)
   (let* ((parent (current-buffer))
          (file1 (or (car files) default-directory))

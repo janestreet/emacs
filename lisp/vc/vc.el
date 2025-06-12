@@ -116,6 +116,11 @@
 ;;   Takes no arguments.  Backends that return non-nil can update
 ;;   buffers on `vc-retrieve-tag' based on user input.  In this case
 ;;   user will be prompted to update buffers on `vc-retrieve-tag'.
+;;
+;; - async-checkins
+;;
+;;   Takes no arguments.  Backends that return non-nil can (and do)
+;;   perform async checkins when `vc-async-checkin' is non-nil.
 
 ;; STATE-QUERYING FUNCTIONS
 ;;
@@ -990,9 +995,6 @@ Not supported by all backends."
   :safe #'booleanp
   :version "31.1")
 
-(defvar vc-async-checkin-backends '(Git Hg)
-  "Backends which support `vc-async-checkin'.")
-
 (defmacro vc--with-backend-in-rootdir (desc &rest body)
   (declare (indent 1) (debug (sexp body)))
   ;; Intentionally capture `backend' and `rootdir':
@@ -1856,6 +1858,8 @@ Type \\[vc-next-action] to check in changes.")
      (substitute-command-keys
       "Please explain why you stole the lock.  Type \\`C-c C-c' when done"))))
 
+(defalias 'vc-default-async-checkins #'ignore)
+
 (defun vc-checkin
     (files backend &optional comment initial-contents rev patch-string register)
   "Check in FILES.
@@ -1874,7 +1878,7 @@ registered the checkin will abort.
 Runs the normal hooks `vc-before-checkin-hook' and `vc-checkin-hook'."
   (run-hooks 'vc-before-checkin-hook)
   (let ((do-async (and vc-async-checkin
-                       (memq backend vc-async-checkin-backends))))
+                       (vc-call-backend backend 'async-checkins))))
    (vc-start-logentry
     files comment initial-contents
     "Enter a change comment."
