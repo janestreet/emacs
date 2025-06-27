@@ -303,7 +303,7 @@ TABLE must be at point in the current buffer."
       (while (and (cdr objects)
                   (not (eq (cadr objects) old-object)))
         (setq objects (cdr objects)))
-      (unless objects
+      (unless (cdr objects)
         (error "Can't find the old object"))
       (setcar (cdr objects) object))
     ;; Then update the rendered vtable in the current buffer.
