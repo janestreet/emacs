@@ -2631,12 +2631,7 @@ Unlike `vc-find-revision-save', doesn't save the buffer to the file."
                       (ignore-errors (delay-mode-hooks (set-auto-mode))))
                   (normal-mode))
 	        (set-buffer-modified-p nil)
-                (setq buffer-read-only t)
-                (run-hooks 'read-only-mode-hook)
-                (when (and view-read-only
-                           (not view-mode)
-                           (not (eq (get major-mode 'mode-class) 'special)))
-                  (view-mode-enter))
+                (read-only-mode 1)
                 (setq failed nil))
 	    (when (and failed (unless buffer (get-file-buffer filename)))
 	      (with-current-buffer (get-file-buffer filename)
