@@ -38395,6 +38395,9 @@ to control which program to use when looking for matches.
 
 ;;; Generated autoloads from xt-mouse.el
 
+(defvar xterm-mouse-mode-called nil "\
+If `xterm-mouse-mode' has been called already.
+This can be used to detect if xterm-mouse-mode was explicitly set.")
 (defvar xterm-mouse-mode nil "\
 Non-nil if Xterm-Mouse mode is enabled.
 See the `xterm-mouse-mode' command
@@ -38406,12 +38409,14 @@ or call the function `xterm-mouse-mode'.")
 (autoload 'xterm-mouse-mode "xt-mouse" "\
 Toggle XTerm mouse mode.
 
-Turn it on to use Emacs mouse commands, and off to use xterm mouse commands.
-This works in terminal emulators compatible with xterm.  It only
-works for simple uses of the mouse.  Basically, only non-modified
-single clicks are supported.  When turned on, the normal xterm
-mouse functionality for such clicks is still available by holding
-down the SHIFT key while pressing the mouse button.
+Turn it on to use Emacs mouse commands, and off to use xterm mouse
+commands.  This works in terminal emulators compatible with xterm.  When
+turned on, the normal xterm mouse functionality for such clicks is still
+available by holding down the SHIFT key while pressing the mouse button.
+
+On text terminals that Emacs knows are compatible with the mouse as well
+as other critical editing functionality, this is automatically turned on
+at startup.  See Info node `(elisp)Terminal-Specific' and `xterm--init'.
 
 This is a global minor mode.  If called interactively, toggle the
 `Xterm-Mouse mode' mode.  If the prefix argument is positive, enable the
