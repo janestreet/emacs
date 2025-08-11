@@ -457,10 +457,6 @@ static struct fd_callback_data
   void *data;
   /* Flags from enum fd_bits.  */
   int flags;
-  /* If this fd is locked to a certain thread, this points to it.
-     Otherwise, this is NULL.  If an fd is locked to a thread, then
-     only that thread is permitted to wait on it.  */
-  struct thread_state *thread;
   /* If this fd is currently being selected on by a thread, this
      points to the thread.  Otherwise it is NULL.  */
   struct thread_state *waiting_thread;
@@ -472,7 +468,6 @@ clear_fd_callback_data (struct fd_callback_data* elem)
   elem->func = NULL;
   elem->data = NULL;
   elem->flags = 0;
-  elem->thread = NULL;
   elem->waiting_thread = NULL;
 }
 
@@ -593,9 +588,6 @@ compute_input_wait_mask (fd_set *mask)
   eassert (max_desc < FD_SETSIZE);
   for (fd = 0; fd <= max_desc; ++fd)
     {
-      if (fd_callback_info[fd].thread != NULL
-	  && fd_callback_info[fd].thread != current_thread)
-	continue;
       if (fd_callback_info[fd].waiting_thread != NULL
 	  && fd_callback_info[fd].waiting_thread != current_thread)
 	continue;
@@ -616,9 +608,6 @@ compute_non_process_wait_mask (fd_set *mask)
   eassert (max_desc < FD_SETSIZE);
   for (fd = 0; fd <= max_desc; ++fd)
     {
-      if (fd_callback_info[fd].thread != NULL
-	  && fd_callback_info[fd].thread != current_thread)
-	continue;
       if (fd_callback_info[fd].waiting_thread != NULL
 	  && fd_callback_info[fd].waiting_thread != current_thread)
 	continue;
@@ -640,9 +629,6 @@ compute_non_keyboard_wait_mask (fd_set *mask)
   eassert (max_desc < FD_SETSIZE);
   for (fd = 0; fd <= max_desc; ++fd)
     {
-      if (fd_callback_info[fd].thread != NULL
-	  && fd_callback_info[fd].thread != current_thread)
-	continue;
       if (fd_callback_info[fd].waiting_thread != NULL
 	  && fd_callback_info[fd].waiting_thread != current_thread)
 	continue;
@@ -664,9 +650,6 @@ compute_write_mask (fd_set *mask)
   eassert (max_desc < FD_SETSIZE);
   for (fd = 0; fd <= max_desc; ++fd)
     {
-      if (fd_callback_info[fd].thread != NULL
-	  && fd_callback_info[fd].thread != current_thread)
-	continue;
       if (fd_callback_info[fd].waiting_thread != NULL
 	  && fd_callback_info[fd].waiting_thread != current_thread)
 	continue;
@@ -978,12 +961,6 @@ update_processes_for_thread_death (Lisp_Object dying_thread)
 	  struct Lisp_Process *proc = XPROCESS (process);
 
 	  pset_thread (proc, Qnil);
-	  eassert (proc->infd < FD_SETSIZE);
-	  if (proc->infd >= 0)
-	    fd_callback_info[proc->infd].thread = NULL;
-	  eassert (proc->outfd < FD_SETSIZE);
-	  if (proc->outfd >= 0)
-	    fd_callback_info[proc->outfd].thread = NULL;
 	}
     }
 }
@@ -1451,12 +1428,6 @@ set_proc_thread (struct Lisp_Process *proc, struct thread_state *thrd)
 {
   eassert ((NILP (proc->thread) && !thrd)
 	   || (THREADP (proc->thread) && XTHREAD (proc->thread) == thrd));
-  eassert (proc->infd < FD_SETSIZE);
-  if (proc->infd >= 0)
-    fd_callback_info[proc->infd].thread = thrd;
-  eassert (proc->outfd < FD_SETSIZE);
-  if (proc->outfd >= 0)
-    fd_callback_info[proc->outfd].thread = thrd;
 }
 
 DEFUN ("set-process-thread", Fset_process_thread, Sset_process_thread,
@@ -4834,7 +4805,6 @@ deactivate_process (Lisp_Object proc)
     {
       if (p->open_fd[i] >= 0)
 	{
-	  fd_callback_info[p->open_fd[i]].thread = NULL;
 	  fd_callback_info[p->open_fd[i]].waiting_thread = NULL;
 	}
       close_process_fd (&p->open_fd[i]);
@@ -5139,13 +5109,10 @@ server_accept_connection (Lisp_Object server, int channel)
      descriptors.  */
   if (NILP (ps->thread))
     {
-      eassert (!fd_callback_info[p->infd].thread);
       set_proc_thread (p, NULL);
     }
   else
     {
-      eassert (!fd_callback_info[p->infd].thread
-	       || fd_callback_info[p->infd].thread == XTHREAD (ps->thread));
       eassert (XTHREAD (ps->thread) == current_thread);
       set_proc_thread (p, XTHREAD (ps->thread));
     }
