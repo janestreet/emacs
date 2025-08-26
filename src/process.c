@@ -5857,9 +5857,20 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 	{
 	  if (xerrno == EINTR)
 	    no_avail = 1;
-	  else if (xerrno == EBADF)
+	  else if (xerrno == EBADF) {
+	    fprintf (stderr, "%s:%d: Emacs fatal error: tried to select on a closed file descriptor\n"
+		     "current_thread: %p\n",
+		     __FILE__, __LINE__, current_thread);
+	    if (wait_proc) {
+	      fprintf (stderr, "wait_proc: %s\n", SDATA (wait_proc->name));
+	      fprintf (stderr, "wait_proc infd: %d\n", wait_proc->infd);
+	      fprintf (stderr, "wait_proc outfd: %d\n", wait_proc->outfd);
+	    } else {
+	      fprintf (stderr, "wait_proc = NULL\n");
+	    }
+	    fprintf (stderr, "current_thread: %s\n", SDATA (current_thread->name));
 	    emacs_abort ();
-	  else
+	  } else
 	    report_file_errno ("Failed select", Qnil, xerrno);
 	}
 
