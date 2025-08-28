@@ -5450,11 +5450,13 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 	  if (0 <= fd)
 	    FD_CLR (fd, &Atemp);
 
+	  /* We're just checking to see if any of these fds are active,
+	     so make pselect return immediately. */
 	  timeout = make_timespec (0, 0);
-	  if ((thread_select (pselect, max_desc + 1,
-			      &Atemp,
-			      (num_pending_connects > 0 ? &Ctemp : NULL),
-			      NULL, &timeout, NULL)
+	  if ((pselect (max_desc + 1,
+			&Atemp,
+			(num_pending_connects > 0 ? &Ctemp : NULL),
+			NULL, &timeout, NULL)
 	       <= 0))
 	    {
 	      /* It's okay for us to do this and then continue with
