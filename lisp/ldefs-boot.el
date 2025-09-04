@@ -26032,13 +26032,19 @@ interactively, include all files under the project root, except
 for VCS directories listed in `vc-directory-exclusion-list'.
 
 (fn &optional INCLUDE-ALL)" t)
-(autoload 'project-find-matching-file "project" "\
-Visit the file that matches the current one, in another project.
-It will skip to the same line number as well.
-A matching file has the same file name relative to the project root.
+(autoload 'project-find-matching-buffer "project" "\
+Switch to a matching buffer in another project.
+For most file-visiting buffers, the matching buffer is one visiting a
+file in the other project which has the same file name relative to the
+project root.  See `project-find-matching-file' for details.
+Non-file-visiting major modes may configure a different notion of
+matching buffer; see `project-find-matching-buffer-function'.
+
 When called during switching to another project, this command will
-detect it and use the override.  Otherwise, it prompts for the project
-to use from the known list." t)
+detect that, and use the override.  Otherwise, it prompts for the
+project to use from the list of known projects.
+When calling from Lisp, bind `project-current-directory-override' to a
+directory under the target project to preempt this prompting." t)
 (autoload 'project-find-dir "project" "\
 Start Dired in a directory inside the current project.
 
@@ -26147,9 +26153,13 @@ Also see the `project-kill-buffers-display-buffer-list' variable.
 Add project PR to the front of the project list.
 If project PR satisfies `project-list-exclude', then nothing is done.
 Save the result in `project-list-file' if the list of projects
-has changed, and NO-WRITE is nil.
+has changed.
+When called from Lisp, optional argument NO-WRITE non-nil means to
+suppress saving `project-list-file'.
+Optional argument STABLE means don't move PR to the front of the project
+list if it's already present further down the project list.
 
-(fn PR &optional NO-WRITE)")
+(fn PR &optional NO-WRITE STABLE)" t)
 (autoload 'project-forget-project "project" "\
 Remove directory PROJECT-ROOT from the project list.
 PROJECT-ROOT is the root directory of a known project listed in
@@ -35255,6 +35265,17 @@ See `vc-use-incoming-outgoing-prefixes' regarding giving this command a
 global binding.
 
 (fn &optional REMOTE-LOCATION)" t)
+(autoload 'vc-diff-incoming "vc" "\
+Report changes to VC fileset that would be pulled from REMOTE-LOCATION.
+When unspecified REMOTE-LOCATION is the place \\[vc-update] would pull from.
+When called interactively with a prefix argument, prompt for REMOTE-LOCATION.
+In some version control systems REMOTE-LOCATION can be a remote branch name.
+When called from Lisp optional argument FILESET overrides the VC fileset.
+
+See `vc-use-incoming-outgoing-prefixes' regarding giving this command a
+global binding.
+
+(fn &optional REMOTE-LOCATION FILESET)" t)
 (autoload 'vc-root-diff-outgoing "vc" "\
 Report diff of all changes that would be pushed to REMOTE-LOCATION.
 When unspecified REMOTE-LOCATION is the place \\[vc-push] would push to.
@@ -35265,6 +35286,17 @@ See `vc-use-incoming-outgoing-prefixes' regarding giving this command a
 global binding.
 
 (fn &optional REMOTE-LOCATION)" t)
+(autoload 'vc-diff-outgoing "vc" "\
+Report changes to VC fileset that would be pushed to REMOTE-LOCATION.
+When unspecified REMOTE-LOCATION is the place \\[vc-push] would push to.
+When called interactively with a prefix argument, prompt for REMOTE-LOCATION.
+In some version control systems REMOTE-LOCATION can be a remote branch name.
+When called from Lisp optional argument FILESET overrides the VC fileset.
+
+See `vc-use-incoming-outgoing-prefixes' regarding giving this command a
+global binding.
+
+(fn &optional REMOTE-LOCATION FILESET)" t)
 (autoload 'vc-version-ediff "vc" "\
 Show differences between REV1 and REV2 of FILES using ediff.
 This compares two revisions of the files in FILES.  Currently,
@@ -35593,6 +35625,13 @@ name relative to DIRECTORY that this buffer's file has relative
 to the root of this working tree.
 
 (fn DIRECTORY)" t)
+(autoload 'vc-working-tree-switch-project "vc" "\
+Like \\[project-switch-project] but limited to projects with the same backing repository.
+Must be called from within an existing VC working tree.
+Prompts for the directory file name of the other working tree.
+
+(fn DIR)" t)
+(function-put 'vc-working-tree-switch-project 'interactive-only 'project-switch-project)
 (autoload 'vc-delete-working-tree "vc" "\
 Delete working tree DIRECTORY with same backing repository as this tree.
 Must be called from within an existing VC working tree.
@@ -35603,8 +35642,8 @@ BACKEND is the VC backend.
 (autoload 'vc-move-working-tree "vc" "\
 Relocate a working tree from FROM to TO, two directory file names.
 Must be called from within an existing VC working tree.
-When called interactively, prompts the directory file names of each of
-the other working trees FROM and TO.
+When called interactively, prompts for the directory file names of each
+of the other working trees FROM and TO.
 BACKEND is the VC backend.
 
 (fn BACKEND FROM TO)" t)
