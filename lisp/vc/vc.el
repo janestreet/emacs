@@ -2577,9 +2577,9 @@ global binding."
                       ;;          'repository)
                       ;;      (ignore-errors
                       ;;        (vc-call-backend backend 'working-revision
-                      ;;                         (car fileset)))
+                      ;;                         (caadr fileset)))
                       (vc-call-backend backend 'working-revision
-                                       (car fileset))
+                                       (caadr fileset))
                       (called-interactively-p 'interactive))))
 
 (declare-function ediff-load-version-control "ediff" (&optional silent))
