@@ -721,6 +721,25 @@ This is the keyboard interface to \\[context-menu-map]."
   (insert string))
 
 
+;; Mouse shift adjustment mode.
+
+(defvar mouse-shift-adjust-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [S-down-mouse-1] #'mouse-drag-region-shift-adjust)
+    (define-key map [S-mouse-1]      #'mouse-set-region)
+    (define-key map [S-drag-mouse-1] #'mouse-set-region)
+    map)
+  "Mouse shift adjustment mode map.")
+
+(define-minor-mode mouse-shift-adjust-mode
+  "Toggle mouse shift adjustment mode.
+
+When this mode is enabled, clicking the left mouse button
+with the <Shift> modifier (`S-down-mouse-1') adjusts the
+already selected region using `mouse-drag-region-shift-adjust'."
+  :global t)
+
+
 ;; Commands that operate on windows.
 
 (defun mouse-minibuffer-check (event)
@@ -1488,6 +1507,8 @@ point determined by `mouse-select-region-move-to-beginning'."
        (eq mouse-last-region-end (region-end))
        (eq mouse-last-region-tick (buffer-modified-tick))))
 
+(defvar mouse-shift-adjust-point nil)
+
 (defun mouse-set-region (click)
   "Set the region to the text dragged over, and copy to kill ring.
 This should be bound to a mouse drag event.
@@ -1496,7 +1517,7 @@ command alters the kill ring or not."
   (interactive "e")
   (mouse-minibuffer-check click)
   (select-window (posn-window (event-start click)))
-  (let ((beg (posn-point (event-start click)))
+  (let ((beg (or mouse-shift-adjust-point (posn-point (event-start click))))
         (end
          (if (eq (posn-window (event-end click)) (selected-window))
              (posn-point (event-end click))
@@ -1505,7 +1526,7 @@ command alters the kill ring or not."
            (window-point)))
         (click-count (event-click-count click)))
     (let ((drag-start (terminal-parameter nil 'mouse-drag-start)))
-      (when drag-start
+      (when (and drag-start (not mouse-shift-adjust-point))
         ;; Drag events don't come with a click count, sadly, so we hack
         ;; our way around this problem by remembering the start-event in
         ;; `mouse-drag-start' and fetching the click-count from there.
@@ -1520,6 +1541,9 @@ command alters the kill ring or not."
                    (not (eq (car drag-start) 'mouse-movement)))
           (setq end beg))
         (setf (terminal-parameter nil 'mouse-drag-start) nil)))
+    (when mouse-shift-adjust-point
+      (setq click-count (1+ mouse-selection-click-count)))
+    (setq mouse-shift-adjust-point nil)
     (when (and (integerp beg) (integerp end))
       (let ((range (mouse-start-end beg end (1- click-count))))
         (if (< end beg)
@@ -1640,11 +1664,22 @@ is dragged over to."
     (ignore-preserving-kill-region)
     (mouse-drag-track start-event)))
 
+(defun mouse-drag-region-shift-adjust (start-event)
+  "Adjust the already active region while dragging the mouse."
+  (interactive "e")
+  ;; Give temporary modes such as isearch a chance to turn off.
+  (run-hooks 'mouse-leave-buffer-hook)
+  (ignore-preserving-kill-region)
+  (setq mouse-shift-adjust-point
+        (or (and (region-active-p) (mark t)) (point)))
+  (mouse-drag-track start-event))
+
 ;; Inhibit the region-confinement when undoing mouse-drag-region
 ;; immediately after the command.  Otherwise, the selection left
 ;; active around the dragged text would prevent an undo of the whole
 ;; operation.
 (put 'mouse-drag-region 'undo-inhibit-region t)
+(put 'mouse-drag-region-shift-adjust 'undo-inhibit-region t)
 
 (defun mouse-posn-property (pos property)
   "Look for a property at click position.
@@ -1792,6 +1827,9 @@ The region will be defined with mark and point."
                     (setq scroll-margin scroll-margin-saved))))
     (condition-case err
         (progn
+          ;; Use previous click-count while adjusting previous selection.
+          (when mouse-shift-adjust-point
+            (setq click-count mouse-selection-click-count))
           (setq mouse-selection-click-count click-count)
 
           ;; Suppress automatic scrolling near the edges while tracking
@@ -1813,9 +1851,17 @@ The region will be defined with mark and point."
                       (if (eq transient-mark-mode 'lambda)
                           '(only)
                         (cons 'only transient-mark-mode)))
-          (let ((range (mouse-start-end start-point start-point click-count)))
-            (push-mark (nth 0 range) t t)
-            (goto-char (nth 1 range)))
+          (let ((range (mouse-start-end
+                        (or mouse-shift-adjust-point start-point)
+                        start-point click-count)))
+            (cond
+             ((and mouse-shift-adjust-point
+                   (> mouse-shift-adjust-point start-point))
+              (push-mark (nth 1 range) t t)
+              (goto-char (nth 0 range)))
+             (t
+              (push-mark (nth 0 range) t t)
+              (goto-char (nth 1 range)))))
 
           (setf (terminal-parameter nil 'mouse-drag-start) start-event)
           ;; Set 'track-mouse' to something neither nil nor t, so that mouse
@@ -1838,8 +1884,9 @@ The region will be defined with mark and point."
                      (setcar start-event 'mouse-movement))
                    (if (and (eq (posn-window end) start-window)
                             (integer-or-marker-p end-point))
-                       (mouse--drag-set-mark-and-point start-point
-                                                       end-point click-count)
+                       (mouse--drag-set-mark-and-point
+                        (or mouse-shift-adjust-point start-point)
+                        end-point click-count)
                      (let ((mouse-row (cdr (cdr (mouse-position)))))
                        (cond
                         ((null mouse-row))
