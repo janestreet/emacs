@@ -283,6 +283,13 @@ from recomputing image maps.
 
 ** Minibuffer and Completions
 
+---
+*** New mode 'minibuffer-nonselected-mode'.
+This mode enabled by default directs the attention to the active
+minibuffer window using the 'minibuffer-nonselected' face in case
+when the minibuffer window is no longer selected, but the minibuffer
+is still waiting for input.
+
 *** New commands 'previous-line-completion' and 'next-line-completion'.
 Bound to '<up>' and '<down>' arrow keys, respectively, they navigate
 the "*Completions*" buffer vertically by lines, wrapping at the
