@@ -54,4 +54,16 @@
                   (buffer-string))))
     (should (equal output "nil\n"))))
 
+(ert-deftest startup-tests/load-path-filter-cache-directory-files ()
+  (should (locate-file "term/xterm" load-path '(".el")))
+  (should (locate-file "startup" load-path '(".el")))
+  (let ((load-path-filter-function #'load-path-filter-cache-directory-files)
+        load-path-filter--cache)
+    (should (load-path-filter-cache-directory-files load-path "startup" '(".el")))
+    (should (load-path-filter-cache-directory-files load-path "term/xterm" '(".el")))
+    (should (locate-file "term/xterm" load-path '(".el")))
+    (should (locate-file "startup" load-path '(".el")))
+    (should (locate-file "term/xterm.el" load-path))
+    (should (locate-file "startup.el" load-path))))
+
 ;;; startup-tests.el ends here
