@@ -1414,8 +1414,6 @@ Return t if the file exists and loads successfully.  */)
 	}
 
       Lisp_Object load_path = Vload_path;
-      if (FUNCTIONP (Vload_path_filter_function))
-	load_path = calln (Vload_path_filter_function, load_path, file, suffixes);
 
 #if !defined USE_ANDROID_ASSETS
       fd = openp (load_path, file, suffixes, &found, Qnil,
@@ -2003,6 +2001,9 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
     *storeptr = Qnil;
 
   absolute = complete_filename_p (str);
+
+  if (FUNCTIONP (Vload_path_filter_function))
+    path = calln (Vload_path_filter_function, path, str, suffixes);
 
   AUTO_LIST1 (just_use_str, Qnil);
   if (NILP (path))
@@ -6116,6 +6117,7 @@ to load, and the current load-suffixes.
 It should return a list of directories, which `load' will use instead of
 `load-path'.  */);
   Vload_path_filter_function = Qnil;
+  DEFSYM (Qload_path_filter_function, "load-path-filter-function");
 
   /* Vsource_directory was initialized in init_lread.  */
 
