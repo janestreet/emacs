@@ -1148,38 +1148,50 @@ the `--debug-init' option to view a complete error backtrace."
 (defvar load-path-filter--cache nil
   "A cache used by `load-path-filter-cache-directory-files'.
 
-This is an alist.  The car of each entry is a list of load suffixes,
-such as returned by `get-load-suffixes'.  The cdr of each entry is a
-cons whose car is an optimized regex matching those suffixes at the end
-of a string, and whose cdr is a hashtable mapping directories to files
-in that directory which end with one of the suffixes.")
+The value is a hash-table mapping directories to files in those
+directories.  Subdirectories will end with a \"/\".
+The hash-table uses `equal' as its key comparison function.")
 
 (defun load-path-filter-cache-directory-files (path file suffixes)
-  "Filter PATH to only directories which might contain FILE with SUFFIXES.
+  "Filter PATH to leave only directories which might contain FILE with SUFFIXES.
 
-Doesn't filter if FILE is an absolute file name or if FILE is a relative
-file name with more than one component.
+PATH should be a list of directories such as `load-path'.
+Returns a copy of PATH with any directories that cannot contain FILE
+with SUFFIXES removed from it.
+Doesn't filter PATH if FILE is an absolute file name.
 
-Caches directory contents in `load-path-filter--cache'."
-  (if (file-name-directory file)
-      ;; FILE has more than one component, don't bother filtering.
+Caches contents of directories in `load-path-filter--cache'.
+
+This function is called from `load' via `load-path-filter-function'."
+  (if (or (file-name-absolute-p file)
+          (string-empty-p file))
       path
-    (seq-filter
-     (let ((rx-and-ht
-            (with-memoization (alist-get suffixes load-path-filter--cache nil nil #'equal)
-              (cons
-               (concat (regexp-opt suffixes) "\\'")
-               (make-hash-table :test #'equal)))))
+    (unless suffixes
+      (setq suffixes '("")))
+    (let ((filter-on
+           ;; Filter on the first component of FILE.
+           (let ((split (file-name-split file)))
+             (if (cdr split)
+                 ;; The first component must be a directory.
+                 (file-name-as-directory (car split))
+               (car split))))
+          (completion-regexp-list
+           (list (concat (regexp-opt (cons "/" suffixes)) "\\'")))
+          (completion-ignore-case nil))
+      (unless load-path-filter--cache
+        (setq load-path-filter--cache (make-hash-table :test #'equal)))
+      (seq-filter
        (lambda (dir)
          (let ((contents
-                (with-memoization (gethash dir (cdr rx-and-ht))
+                (with-memoization (gethash dir load-path-filter--cache)
                   (condition-case ret
-                      (directory-files dir nil (car rx-and-ht) t)
+                      (let ((completion-regexp-list nil))
+                        (file-name-all-completions "" dir))
                     (error 'unknown)
                     (:success (cons 'present ret))))))
            (or (eq contents 'unknown)
-               (try-completion file (cdr contents))))))
-     path)))
+               (try-completion filter-on (cdr contents)))))
+       path))))
 
 (defun command-line ()
   "A subroutine of `normal-top-level'.
