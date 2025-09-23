@@ -1138,14 +1138,8 @@ the `--debug-init' option to view a complete error backtrace."
 (defvar load-path-filter--cache nil
   "A cache used by `load-path-filter-cache-directory-files'.
 
-The value is an alist.  The car of each entry is a list of load suffixes,
-such as returned by `get-load-suffixes'.  The cdr of each entry is a
-cons whose car is a regex matching those suffixes
-at the end of a string, and whose cdr is a hash-table mapping directories
-to files in those directories which end with one of the suffixes.
-These can also be nil, in which case no filtering will happen.
-The files named in the hash-table can be of any kind,
-including subdirectories.
+The value is a hash-table mapping directories to files in those
+directories.  Subdirectories will end with a \"/\".
 The hash-table uses `equal' as its key comparison function.")
 
 (defun load-path-filter-cache-directory-files (path file suffixes)
@@ -1154,41 +1148,40 @@ The hash-table uses `equal' as its key comparison function.")
 PATH should be a list of directories such as `load-path'.
 Returns a copy of PATH with any directories that cannot contain FILE
 with SUFFIXES removed from it.
-Doesn't filter PATH if FILE is an absolute file name or if FILE is
-a relative file name with leading directories.
+Doesn't filter PATH if FILE is an absolute file name.
 
 Caches contents of directories in `load-path-filter--cache'.
 
 This function is called from `load' via `load-path-filter-function'."
-  (if (file-name-directory file)
-      ;; FILE has more than one component, don't bother filtering.
+  (if (or (file-name-absolute-p file)
+          (string-empty-p file))
       path
-    (pcase-let
-        ((`(,rx . ,ht)
-          (with-memoization (alist-get suffixes load-path-filter--cache
-                                       nil nil #'equal)
-            (if (member "" suffixes)
-                '(nil ;; Optimize the filtering.
-                  ;; Don't bother filtering if "" is among the suffixes.
-                  ;; It's a much less common use-case and it would use
-                  ;; more memory to keep the corresponding info.
-                  . nil)
-              (cons (concat (regexp-opt suffixes) "\\'")
-                    (make-hash-table :test #'equal))))))
-      (if (null ht)
-          path
-        (let ((completion-regexp-list nil))
-          (seq-filter
-           (lambda (dir)
-             (let ((contents
-                    (with-memoization (gethash dir ht)
-                      (condition-case ret
-                          (directory-files dir nil rx t)
-                        (error 'unknown)
-                        (:success (cons 'present ret))))))
-               (or (eq contents 'unknown)
-                   (try-completion file (cdr contents)))))
-           path))))))
+    (unless suffixes
+      (setq suffixes '("")))
+    (let ((filter-on
+           ;; Filter on the first component of FILE.
+           (let ((split (file-name-split file)))
+             (if (cdr split)
+                 ;; The first component must be a directory.
+                 (file-name-as-directory (car split))
+               (car split))))
+          (completion-regexp-list
+           (list (concat (regexp-opt (cons "/" suffixes)) "\\'")))
+          (completion-ignore-case nil))
+      (unless load-path-filter--cache
+        (setq load-path-filter--cache (make-hash-table :test #'equal)))
+      (seq-filter
+       (lambda (dir)
+         (let ((contents
+                (with-memoization (gethash dir load-path-filter--cache)
+                  (condition-case ret
+                      (let ((completion-regexp-list nil))
+                        (file-name-all-completions "" dir))
+                    (error 'unknown)
+                    (:success (cons 'present ret))))))
+           (or (eq contents 'unknown)
+               (try-completion filter-on (cdr contents)))))
+       path))))
 
 (defcustom user-lisp-auto-scrape t
   "Enable auto-scraping of `user-lisp-directory' at startup.

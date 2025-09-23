@@ -484,6 +484,7 @@ load_charset_map_from_file (struct charset *charset, Lisp_Object mapfile,
   specpdl_ref count = SPECPDL_INDEX ();
   record_unwind_protect_nothing ();
   specbind (Qfile_name_handler_alist, Qnil);
+  specbind (Qload_path_filter_function, Qnil);
   fd = openp (Vcharset_map_path, mapfile, suffixes, NULL, Qnil, false, false,
 	      NULL);
   fp = fd < 0 ? 0 : emacs_fdopen (fd, "r");
