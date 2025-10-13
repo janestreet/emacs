@@ -1269,7 +1269,7 @@ that file."
           (if (not (derived-mode-p 'vc-dir-mode))
               (push status-buf drop)
             (let ((ddir default-directory))
-              (when (string-prefix-p ddir file)
+              (when (file-in-directory-p file ddir)
                 (if (file-directory-p file)
 		    (progn
 		      (vc-dir-resync-directory-files file)
