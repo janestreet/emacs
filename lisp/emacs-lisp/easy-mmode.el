@@ -565,7 +565,7 @@ Disable the mode if ARG is a negative number.\n\n"
 	 (dolist (buf (buffer-list))
 	   (with-current-buffer buf
              (if ,global-mode (funcall ,turn-on-function)
-               (when ,MODE-variable (,mode -1)))))
+               (when (bound-and-true-p ,MODE-variable) (,mode -1)))))
          ,@body)
 
        ,(when predicate
@@ -627,7 +627,7 @@ list."
                  ;; If one of them declines to turn the minor mode on,
                  ;; that should not mean the others can't.
                  (,MODE-suppress-set-explicitly t))
-             (if ,MODE-variable
+             (if (bound-and-true-p ,MODE-variable)
                  (progn
                    (,mode -1)
                    (funcall ,turn-on-function))
