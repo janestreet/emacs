@@ -7557,18 +7557,18 @@ Also see the `diff-entire-buffers' variable.
 
 (autoload 'diff-mode "diff-mode" "\
 Major mode for viewing/editing context diffs.
-Supports unified and context diffs as well as (to a lesser extent)
-normal diffs.
-
-When the buffer is read-only, the ESC prefix is not necessary.
-If you edit the buffer manually, `diff-mode' will try to update the hunk
-headers for you on-the-fly.
+Supports unified and context diffs as well as, to a lesser extent, diffs
+in the old \"normal\" format.  (Unified diffs have become the standard,
+most commonly encountered format.)  If you edit the buffer manually,
+`diff-mode' will try to update the hunk headers for you on-the-fly.
 
 You can also switch between context diff and unified diff with \\[diff-context->unified],
 or vice versa with \\[diff-unified->context] and you can also reverse the direction of
 a diff with \\[diff-reverse-direction].
 
 \\{diff-mode-map}
+In read-only buffers the following bindings are also available:
+\\{diff-read-only-map}
 
 (fn)" t)
 (autoload 'diff-minor-mode "diff-mode" "\
@@ -35568,8 +35568,8 @@ file names.
 
 (fn FILE-OR-FILES)" t)
 (autoload 'vc-rename-file "vc" "\
-Rename file OLD to NEW in both work area and repository.
-If called interactively, read OLD and NEW, defaulting OLD to the
+Rename file OLD to NEW in both working tree and repository.
+When called interactively, read OLD and NEW, defaulting OLD to the
 current buffer's file name if it's under version control.
 
 (fn OLD NEW)" t)
@@ -35644,6 +35644,44 @@ of the other working trees FROM and TO.
 BACKEND is the VC backend.
 
 (fn BACKEND FROM TO)" t)
+(autoload 'vc-apply-to-other-working-tree "vc" "\
+Apply VC fileset's local changes to working tree under DIRECTORY.
+Must be called from within an existing VC working tree.
+When called interactively, prompts for DIRECTORY.
+With a prefix argument (when called from Lisp, with optional argument
+MOVE non-nil), don't just copy the changes, but move them, from the
+current working tree to DIRECTORY.
+
+When called from a `diff-mode' buffer, move or copy the changes
+specified by the contents of that buffer, only.
+
+If any changes to be moved or copied can't be applied to DIRECTORY, it
+is an error, and no changes are applied.
+If any changes to be moved can't be reverse-applied to this working
+tree, it is an error, and no changes are moved.
+
+(fn DIRECTORY &optional MOVE)" t)
+(autoload 'vc-apply-root-to-other-working-tree "vc" "\
+Apply all local changes in this working tree to the tree under DIRECTORY.
+Must be called from within an existing VC working tree.
+When called interactively, prompts for DIRECTORY.
+With a prefix argument (when called from Lisp, with optional argument
+MOVE non-nil), don't just copy the changes, but move them, from the
+current working tree to DIRECTORY.
+
+With a double prefix argument (\\[universal-argument] \\[universal-argument]; when called from Lisp, with
+optional argument PREVIEW non-nil), don't actually apply changes to
+DIRECTORY, but instead show all those changes in a `diff-mode' buffer
+with `default-directory' set to DIRECTORY.
+You can then selectively apply changes with `diff-mode' commands like
+`diff-apply-hunk' and `diff-apply-buffer'.
+
+If any changes to be moved or copied can't be applied to DIRECTORY, it
+is an error, and (except with \\[universal-argument] \\[universal-argument]) no changes are applied.
+If any changes to be moved can't be reverse-applied to this working
+tree, it is an error, and no changes are moved.
+
+(fn DIRECTORY &optional MOVE PREVIEW)" t)
 (register-definition-prefixes "vc" '("log-view-vc-prev-" "vc-" "with-vc-properties"))
 
 
