@@ -4049,7 +4049,7 @@ UPSTREAM-LOCATION.  In some version control systems UPSTREAM-LOCATION
 can be a remote branch name."
   (interactive (list (vc--maybe-read-upstream-location)))
   (vc--with-backend-in-rootdir "VC root-log"
-    (vc-incoming-outgoing-internal backend (or upstream-location "")
+    (vc-incoming-outgoing-internal backend upstream-location
                                    "*vc-incoming*" 'log-incoming)))
 ;; We plan to reuse the name `vc-log-incoming' for the fileset-specific
 ;; command in Emacs 32.1.  --spwhitton
@@ -4073,7 +4073,7 @@ UPSTREAM-LOCATION.  In some version control systems UPSTREAM-LOCATION
 can be a remote branch name."
   (interactive (list (vc--maybe-read-upstream-location)))
   (vc--with-backend-in-rootdir "VC root-log"
-    (vc-incoming-outgoing-internal backend (or upstream-location "")
+    (vc-incoming-outgoing-internal backend upstream-location
                                    "*vc-outgoing*" 'log-outgoing)))
 ;; We plan to reuse the name `vc-log-outgoing' for the fileset-specific
 ;; command in Emacs 32.1.  --spwhitton
