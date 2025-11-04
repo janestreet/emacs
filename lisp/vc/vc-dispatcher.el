@@ -225,7 +225,7 @@ Another is that undo information is not kept."
             ;; each sentinel read&set process-mark, but since `cmd' needs
             ;; to work both for async and sync processes, this would be
             ;; difficult to achieve.
-            (vc-exec-after code success)
+            (vc-exec-after code success p)
             (move-marker m (point)))
           ;; But sometimes the sentinels really want to move point.
           (when vc-sentinel-movepoint
@@ -260,9 +260,7 @@ Only run CODE if the SUCCESS process has a zero exit code."
      ;; but this led to timing problems causing process output to be
      ;; lost.  Terminated processes get deleted automatically
      ;; anyway. -- cyd
-     ((or (null proc) (eq (process-status proc) 'exit))
-      ;; Make sure we've read the process's output before going further.
-      (when proc (accept-process-output proc))
+     ((or (null proc) (memq (process-status proc) '(signal exit)))
       (when (or (not success)
                 (zerop (process-exit-status success)))
         (if (functionp code) (funcall code) (eval code t))))
