@@ -214,7 +214,11 @@ instead of executing it."
              (setq out
                    (if default-item
                        (car (nth index-of-default tmm-km-list))
-                     (minibuffer-with-setup-hook #'tmm-add-prompt
+                     (minibuffer-with-setup-hook
+                         (lambda ()
+                           (setq tmm-old-mb-map (tmm-define-keys t))
+                           (add-hook 'completion-setup-hook
+                                     #'tmm--completion-setup-hook 'append 'local))
                        ;; tmm-km-list is reversed, because history
                        ;; needs it in LIFO order.  But default list
                        ;; needs it in non-reverse order, so that the
@@ -225,7 +229,12 @@ instead of executing it."
                        (completing-read-default
                         (concat gl-str
                                 " (up/down to change, PgUp to menu): ")
-                        (tmm--completion-table tmm-km-list) nil t nil
+                        (completion-table-with-metadata
+                         tmm-km-list '((category . tmm)
+                                       (eager-display . t)
+                                       (display-sort-function . identity)
+                                       (cycle-sort-function . identity)))
+                        nil t nil
                         'tmm--history (reverse tmm--history)))))))
       (setq choice (cdr (assoc out tmm-km-list)))
       (and (null choice)
@@ -361,21 +370,17 @@ Stores a list of all the shortcuts in the free variable `tmm-short-cuts'."
         (goto-char next)))
     (set-buffer-modified-p nil)))
 
-(defun tmm-add-prompt ()
+(defun tmm--completion-setup-hook ()
   (unless tmm-c-prompt
     (error "No active menu entries"))
   (setq tmm-old-mb-map (tmm-define-keys t))
   (or tmm-completion-prompt
-      (add-hook 'completion-setup-hook
-                #'tmm-completion-delete-prompt 'append))
-  (unwind-protect
-      (minibuffer-completion-help)
-    (remove-hook 'completion-setup-hook #'tmm-completion-delete-prompt))
-  (with-current-buffer "*Completions*"
+      (tmm-completion-delete-prompt))
+  (with-current-buffer standard-output
     (tmm-remove-inactive-mouse-face)
     (when tmm-completion-prompt
       (let ((inhibit-read-only t)
-	    (window (get-buffer-window "*Completions*")))
+	    (window (get-buffer-window)))
 	(goto-char (point-min))
 	(insert tmm-completion-prompt)
 	(when window
@@ -412,10 +417,11 @@ Stores a list of all the shortcuts in the free variable `tmm-short-cuts'."
 (defun tmm-goto-completions ()
   "Jump to the completions buffer."
   (interactive)
-  (let ((prompt-end (minibuffer-prompt-end)))
-    (setq tmm-c-prompt (buffer-substring prompt-end (point-max)))
-    ;; FIXME: Why?
-    (delete-region prompt-end (point-max)))
+  (minibuffer-completion-help)
+  (setq tmm-c-prompt (buffer-substring (minibuffer-prompt-end) (point-max)))
+  ;; Clear minibuffer old contents before using *Completions* buffer for
+  ;; selection.
+  (delete-minibuffer-contents)
   (switch-to-buffer-other-window "*Completions*")
   (search-forward tmm-c-prompt)
   (search-backward tmm-c-prompt))
