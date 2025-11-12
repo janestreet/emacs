@@ -494,9 +494,26 @@ of a buffer, which is created.
 ROOT should be the directory in which the command should be run.
 The process object is returned.
 Display the buffer in some window, but don't select it."
-  (let ((dir default-directory)
-	(inhibit-read-only t)
-        proc)
+  (letrec ((dir default-directory)
+           (start-time) (proc)
+           (finished-fun
+            (lambda (proc _msg)
+              (cond ((not (buffer-live-p buffer))
+                     (remove-function (process-sentinel proc)
+                                      finished-fun))
+                    ((not (eq (process-status proc) 'run))
+                     (remove-function (process-sentinel proc)
+                                      finished-fun)
+                     (with-current-buffer buffer
+                       (save-excursion
+                         (goto-char (process-mark proc))
+                         (let ((inhibit-read-only t))
+                           (insert
+                            (format "Finished in %f seconds\n"
+                                    (time-to-seconds
+                                     (time-since start-time))))
+                           (set-marker (process-mark proc)
+                                       (point))))))))))
     (setq buffer (get-buffer-create buffer))
     (if (get-buffer-process buffer)
 	(error "Another VC action on %s is running" root))
@@ -505,6 +522,7 @@ Display the buffer in some window, but don't select it."
       (let* (;; Run in the original working directory.
              (default-directory dir)
              (orig-fun vc-filter-command-function)
+             (inhibit-read-only t)
              (vc-filter-command-function
               (lambda (&rest args)
                 (cl-destructuring-bind (&whole args cmd _ flags)
@@ -529,7 +547,9 @@ Display the buffer in some window, but don't select it."
                         (insert flag))))
                   (insert "'...\n")
                   args))))
-	(setq proc (apply #'vc-do-command t 'async command nil args))))
+	(setq start-time (current-time)
+              proc (apply #'vc-do-command t 'async command nil args))))
+    (add-function :after (process-sentinel proc) finished-fun)
     (vc--display-async-command-buffer buffer)
     proc))
 
