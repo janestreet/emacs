@@ -266,7 +266,8 @@ with empty strings removed."
           ;; see completing_read in src/minibuf.c
           (setq-local minibuffer-completion-confirm
                       (unless (eq require-match t) require-match))
-          (setq-local crm-completion-table table))
+          (setq-local crm-completion-table table)
+          (completions--start-eager-display))
       (setq input (read-from-minibuffer
                    prompt initial-input map
                    nil hist def inherit-input-method)))
