@@ -811,6 +811,22 @@ Returns t for rescan and otherwise an element or subelement of INDEX-ALIST."
                                            menu)))))
     (popup-menu map event)))
 
+(defun imenu--parentify-index-alist (index-alist)
+  (mapcan
+   (lambda (item)
+     (let* ((name (car item))
+	    (pos (cdr item)))
+       (cond
+	((not (imenu--subalist-p item))
+	 (list item))
+	(t
+         (let ((subalist (imenu--parentify-index-alist pos))
+               (reg (get-text-property 0 'breadcrumb-region name)))
+           (when reg
+             (setq subalist (append (list (cons ".." (car reg))) subalist)))
+           (list (cons name subalist)))))))
+   index-alist))
+
 (defun imenu--flatten-index-alist (index-alist &optional concat-names prefix)
   ;; Takes a nested INDEX-ALIST and returns a flat index alist.
   ;; If optional CONCAT-NAMES is non-nil, then a nested index has its
@@ -880,8 +896,9 @@ The returned value is of the form (INDEX-NAME . INDEX-POSITION)."
     ;; Create a list for this buffer only when needed.
     (while (eq result t)
       (setq index-alist (if alist alist (imenu--make-index-alist)))
-      (when imenu-flatten
-        (setq index-alist (imenu--flatten-index-alist index-alist t)))
+      (if imenu-flatten
+          (setq index-alist (imenu--flatten-index-alist index-alist t))
+        (setq index-alist (imenu--parentify-index-alist index-alist)))
       (setq result
 	    (if (and imenu-use-popup-menu
 		     (or (eq imenu-use-popup-menu t) mouse-triggered))
