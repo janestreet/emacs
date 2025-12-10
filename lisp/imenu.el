@@ -841,7 +841,14 @@ Returns t for rescan and otherwise an element or subelement of INDEX-ALIST."
                        (_ new-prefix))
 		     pos)))
 	(t
-	 (imenu--flatten-index-alist pos concat-names new-prefix)))))
+	 (let ((subalist (imenu--flatten-index-alist
+                          pos concat-names new-prefix))
+               (reg (get-text-property 0 'breadcrumb-region name)))
+           (if reg
+               (append (imenu--flatten-index-alist
+                        (list (cons name (car reg))) concat-names prefix)
+                       subalist)
+             subalist))))))
    index-alist))
 
 (defun imenu-choose-buffer-index (&optional prompt alist)
