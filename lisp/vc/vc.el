@@ -2597,8 +2597,9 @@ global binding."
                       ;;                           'revision-granularity)
                       ;;          'repository)
                       ;;      (ignore-errors
-                      ;;        (vc-symbolic-working-revision (caadr fileset)))
-                      (vc-symbolic-working-revision (caadr fileset))
+                      ;;        (vc-symbolic-working-revision (caadr fileset)
+                      ;;                                      backend)))
+                      (vc-symbolic-working-revision (caadr fileset) backend)
                       (called-interactively-p 'interactive))))
 
 (declare-function ediff-load-version-control "ediff" (&optional silent))
