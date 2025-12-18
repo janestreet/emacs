@@ -335,8 +335,6 @@ an \\+`up-to-date' or \\+`ignored' file."
       '(menu-item "Revert to Base Version" vc-revert
 		  :help "Revert working copies of the selected fileset to their repository contents."))
     (define-key map [next-action]
-      ;; FIXME: This really really really needs a better name!
-      ;; And a key binding too.
       '(menu-item "Check In/Out" vc-next-action
 		  :help "Do the next logical version control operation on the current fileset"))
     (define-key map [register]
