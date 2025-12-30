@@ -3978,8 +3978,9 @@ The command prompts for the branch whose change log to show."
 (defun vc--maybe-read-upstream-location ()
   "Read upstream location if there is a prefix argument, else return nil."
   (and current-prefix-arg
-       (read-string "Upstream location/branch (empty for default): " nil
-                    'vc-remote-location-history)))
+       (let ((res (read-string "Upstream location/branch (empty for default): "
+                               nil 'vc-remote-location-history)))
+         (and (not (string-empty-p res)) res))))
 
 (defun vc--maybe-read-outgoing-base (&optional backend no-double)
   "Return upstream location for interactive uses of outgoing base commands.
