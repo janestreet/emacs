@@ -615,10 +615,17 @@ This also updates the displayed table."
                  (insert (propertize
                           " " 'display
                           (list 'space
-                                :width (list
-                                        (+ (- (elt widths index)
-                                              (string-pixel-width displayed))
-                                           (if last 0 spacer)))))))
+                                :width
+                                (list
+                                 (- (elt widths index)
+                                    (if (display-graphic-p)
+                                        (string-pixel-width displayed)
+                                      (string-width displayed)))))))
+                 (insert (propertize
+                          " " 'display
+                          ;; Whole character units are tty safe.
+                          (list 'space
+                                :width (list (if last 0 spacer))))))
              ;; Align to the right.
              (insert (propertize " " 'display
                                  (list 'space
@@ -735,12 +742,19 @@ the cache."
                  name))
          (let* ((indicator-lead-width
                  ;; We want the indicator to not be quite flush right.
-                 (/ (vtable--char-width table) 2.0))
-                (indicator-pad-width (- (vtable--char-width table)
-                                        indicator-lead-width))
+                 (if (display-graphic-p)
+                     (/ (vtable--char-width table) 2.0)
+                   0))
+                (indicator-pad-width
+                 (if (display-graphic-p)
+                     (- (vtable--char-width table)
+                        indicator-lead-width)
+                   0))
                 (fill-width
                  (+ (- (elt widths index)
-                       (string-pixel-width displayed)
+                       (if (display-graphic-p)
+                           (string-pixel-width displayed)
+                         (string-width displayed))
                        indicator-width
                        indicator-lead-width)
                     (if last 0 spacer))))
@@ -751,10 +765,16 @@ the cache."
                (insert
                 displayed
                 (propertize " " 'display
-                            (list 'space :width (list fill-width)))
+                            (list 'space :width
+                                  (if (display-graphic-p)
+                                      (list fill-width)
+                                    fill-width)))
                 indicator
                 (propertize " " 'display
-                            (list 'space :width (list indicator-pad-width))))
+                            (list 'space :width
+                                  (if (display-graphic-p)
+                                      (list indicator-pad-width)
+                                    indicator-pad-width))))
              ;; This is the final column, and we have a sorting
              ;; indicator, and the table is too wide for the window.
              (let* ((pre-indicator (string-pixel-width
