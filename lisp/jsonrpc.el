@@ -612,7 +612,9 @@ and delete the network process."
        (delete-process proc)
        do
        ;; Let sentinel have a chance to run
-       (accept-process-output nil 0.1))
+       (with-timeout (0.1)
+         (while (not (process-get proc 'jsonrpc-sentinel-cleanup-started))
+           (accept-process-output))))
     (when cleanup
       (kill-buffer (process-buffer (jsonrpc--process conn)))
       (kill-buffer (jsonrpc-stderr-buffer conn)))))
