@@ -125,7 +125,7 @@
 
 (defvar-keymap log-view-mode-map
   "RET" #'log-view-toggle-entry-display
-  "M-<return>" #'log-view-display-entry-and-diff
+  "M-RET" #'log-view-display-entry-and-diff
   "m" #'log-view-toggle-mark-entry
   "e" #'log-view-modify-change-comment
   "d" #'log-view-diff
