@@ -79,6 +79,8 @@ extern char **environ;
 #include "frame.h"
 #include "systty.h"
 #include "keyboard.h"
+#include "termhooks.h"
+#include "termchar.h"
 
 #ifdef MSDOS
 #include "msdos.h"
@@ -268,6 +270,31 @@ static mode_t const default_output_mode = S_IREAD | S_IWRITE;
 #else
 static mode_t const default_output_mode = 0666;
 #endif
+
+/* Convert a wait status STATUS to a Lisp object.
+   If the process was signaled, return a signal name string.
+   Otherwise, return the exit code as a fixnum.  */
+
+static Lisp_Object
+process_status_to_lisp (int status)
+{
+  if (WIFSIGNALED (status))
+    {
+      const char *signame;
+
+      synchronize_system_messages_locale ();
+      signame = strsignal (WTERMSIG (status));
+
+      if (signame == 0)
+	signame = "unknown";
+
+      return code_convert_string_norecord (build_string (signame),
+					   Vlocale_coding_system, 0);
+    }
+
+  eassert (WIFEXITED (status));
+  return make_fixnum (WEXITSTATUS (status));
+}
 
 DEFUN ("call-process", Fcall_process, Scall_process, 1, MANY, 0,
        doc: /* Call PROGRAM synchronously in separate process.
@@ -933,22 +960,7 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
   if (!wait_ok)
     return build_unibyte_string ("internal error");
 
-  if (WIFSIGNALED (status))
-    {
-      const char *signame;
-
-      synchronize_system_messages_locale ();
-      signame = strsignal (WTERMSIG (status));
-
-      if (signame == 0)
-	signame = "unknown";
-
-      return code_convert_string_norecord (build_string (signame),
-					   Vlocale_coding_system, 0);
-    }
-
-  eassert (WIFEXITED (status));
-  return make_fixnum (WEXITSTATUS (status));
+  return process_status_to_lisp (status);
 }
 
 /* Create a temporary file suitable for storing the input data of
@@ -1159,6 +1171,134 @@ usage: (call-process-region START END PROGRAM &optional DELETE BUFFER DISPLAY &r
 		      empty_input ? make_invalid_specpdl_ref () : count);
   return unbind_to (count, val);
 }
+
+DEFUN ("call-process-tty", Fcall_process_tty, Scall_process_tty, 3, 3, 0,
+       doc: /* Call PROGRAM synchronously on TTY terminal device.
+
+TTY should be a terminal object, a frame, or nil for the terminal device
+of the currently selected frame.  The terminal must be a text terminal (tty).
+
+The program's input, output, and error are all connected to the specified
+terminal device.  The function waits synchronously for PROGRAM to terminate.
+
+ARGS is a list of strings to pass as command arguments to PROGRAM.
+
+If PROGRAM is not an absolute file name, `call-process-tty' will look for
+PROGRAM in `exec-path' (which is a list of directories).
+
+Returns a numeric exit status or a signal description string.
+If you quit, the process is killed with SIGINT, or SIGKILL if you quit again.
+
+The terminal should typically be suspended with `suspend-tty' before calling
+this function, and resumed with `resume-tty' afterwards.  */)
+  (Lisp_Object tty, Lisp_Object program, Lisp_Object args)
+{
+#ifndef HAVE_ANDROID
+  struct terminal *t;
+  struct tty_display_info *tty_info;
+  pid_t pid;
+  int status;
+  sigset_t oldset;
+  char **envp;
+  int tty_fd;
+  Lisp_Object current_dir, path;
+  specpdl_ref count = SPECPDL_INDEX ();
+  USE_SAFE_ALLOCA;
+  char **new_argv;
+  ptrdiff_t nargs;
+
+  t = decode_tty_terminal (tty);
+  if (!t)
+    error ("Invalid or non-text terminal device");
+
+  tty_info = t->display_info.tty;
+  if (!tty_info)
+    error ("Terminal has no tty display info");
+  if (!tty_info->name)
+    error ("Terminal device has no name");
+
+  CHECK_STRING (program);
+
+  /* Search for program; barf if not found.  */
+  {
+    int ok;
+
+    ok = openp (Vexec_path, program, Vexec_suffixes, &path,
+		make_fixnum (X_OK), false, false, NULL);
+    if (ok < 0)
+      report_file_error ("Searching for program", program);
+  }
+
+  /* Remove "/:" from PATH.  */
+  path = remove_slash_colon (path);
+  path = ENCODE_FILE (path);
+
+  /* Count arguments and build argv array.  */
+  CHECK_LIST (args);
+  nargs = 1 + list_length (args);  /* program name + args */
+
+  SAFE_NALLOCA (new_argv, 1, nargs + 1);
+  new_argv[0] = SSDATA (path);
+
+  {
+    ptrdiff_t i = 1;
+    Lisp_Object tail = args;
+
+    FOR_EACH_TAIL (tail)
+      {
+	Lisp_Object arg = XCAR (tail);
+	CHECK_STRING (arg);
+	arg = ENCODE_FILE (arg);
+	new_argv[i++] = SSDATA (arg);
+      }
+  }
+  new_argv[nargs] = 0;
+
+  current_dir = get_current_directory (true);
+  envp = make_environment_block (current_dir);
+
+  tty_fd = emacs_open (tty_info->name, O_RDWR | O_NOCTTY, 0);
+  if (tty_fd < 0)
+    report_file_error ("Opening terminal device", build_string (tty_info->name));
+  record_unwind_protect_int (close_file_unwind, tty_fd);
+
+  child_signal_init ();
+  block_input ();
+  block_child_signal (&oldset);
+
+  int spawn_err = emacs_spawn (&pid, tty_fd, tty_fd, tty_fd,
+				new_argv, envp, SSDATA (current_dir),
+				NULL, false, false, &oldset);
+
+  synch_process_pid = pid;
+
+  unblock_child_signal (&oldset);
+  unblock_input ();
+
+  if (spawn_err != 0)
+    {
+      synch_process_pid = 0;
+      errno = spawn_err;
+      report_file_error ("Spawning process", program);
+    }
+
+  bool wait_ok = wait_for_termination (pid, &status, true);
+
+  /* Don't kill any children that the subprocess may have left behind
+     when exiting.  */
+  synch_process_pid = 0;
+
+  SAFE_FREE_UNBIND_TO (count, Qnil);
+
+  if (!wait_ok)
+    return build_unibyte_string ("internal error");
+
+  return process_status_to_lisp (status);
+#else /* HAVE_ANDROID */
+  error ("call-process-tty is not supported on Android");
+#endif /* !HAVE_ANDROID */
+}
+
 
 static char **
 add_env (char **env, char **new_env, char *string)
@@ -2246,6 +2386,7 @@ the system.  */);
   defsubr (&Scall_process);
   defsubr (&Sgetenv_internal);
   defsubr (&Scall_process_region);
+  defsubr (&Scall_process_tty);
 
   DEFSYM (Qafter_insert_file_set_buffer_file_coding_system,
 	  "after-insert-file-set-buffer-file-coding-system");

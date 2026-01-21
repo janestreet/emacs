@@ -1,0 +1,8 @@
+#!/usr/bin/expect -f
+set timeout 10
+set env(TERM) xterm
+spawn ./src/emacs -nw -Q -l test-call-process-tty-lib.el --eval "(test-suspend-with-callproc)"
+expect {
+    "Line 1" { send "q"; exp_continue }
+    eof
+}
