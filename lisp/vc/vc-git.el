@@ -1112,6 +1112,8 @@ It is based on `log-edit-mode', and has Git-specific extensions."
 
 (defalias 'vc-git-async-checkins #'always)
 
+(defalias 'vc-git-working-revision-symbol (cl-constantly "HEAD"))
+
 (defun vc-git-checkin (files comment &optional _rev)
   (let* ((file1 (or (car files) default-directory))
          (root (vc-git-root file1))

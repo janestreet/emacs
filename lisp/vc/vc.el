@@ -121,6 +121,16 @@
 ;;
 ;;   Takes no arguments.  Backends that return non-nil can (and do)
 ;;   perform async checkins when `vc-async-checkin' is non-nil.
+;;
+;; - working-revision-symbol
+;;
+;;   Symbolic name for the/a working revision, a constant string.  If
+;;   defined, backend API functions that take revision numbers, revision
+;;   hashes or branch names can also take this string in place of those.
+;;   Emacs passes this name without first having to look up the working
+;;   revision, which is a small performance improvement.
+;;   In addition, using a name instead of a number or hash makes it
+;;   easier to edit backend commands with `vc-edit-next-command'.
 
 ;; STATE-QUERYING FUNCTIONS
 ;;
@@ -2587,10 +2597,8 @@ global binding."
                       ;;                           'revision-granularity)
                       ;;          'repository)
                       ;;      (ignore-errors
-                      ;;        (vc-call-backend backend 'working-revision
-                      ;;                         (caadr fileset)))
-                      (vc-call-backend backend 'working-revision
-                                       (caadr fileset))
+                      ;;        (vc-symbolic-working-revision (caadr fileset)))
+                      (vc-symbolic-working-revision (caadr fileset))
                       (called-interactively-p 'interactive))))
 
 (declare-function ediff-load-version-control "ediff" (&optional silent))
