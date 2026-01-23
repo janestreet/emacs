@@ -546,8 +546,8 @@ This requires hg 4.4 or later, for the \"-L\" option of \"hg log\"."
 (defun vc-hg-diff (files &optional oldvers newvers buffer async)
   "Get a difference report using hg between two revisions of FILES."
   (let* ((firstfile (car files))
-         (working (and firstfile (vc-working-revision firstfile))))
-    (when (and (equal oldvers working) (not newvers))
+         (working (and firstfile (vc-working-revision firstfile 'Hg))))
+    (when (and (not newvers) (member oldvers (list working ".")))
       (setq oldvers nil))
     (when (and (not oldvers) newvers)
       (setq oldvers working))
@@ -1202,6 +1202,8 @@ It is based on `log-edit-mode', and has Hg-specific extensions.")
 (autoload 'vc-wait-for-process-before-save "vc-dispatcher")
 
 (defalias 'vc-hg-async-checkins #'always)
+
+(defalias 'vc-hg-working-revision-symbol (cl-constantly "."))
 
 (defun vc-hg--checkin (comment &optional files patch-string)
   "Workhorse routine for `vc-hg-checkin' and `vc-hg-checkin-patch'.
