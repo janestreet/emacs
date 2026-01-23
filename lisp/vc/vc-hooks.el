@@ -952,7 +952,8 @@ In the latter case, VC mode is deactivated for this buffer."
   "m"   #'vc-merge
   "r"   #'vc-retrieve-tag
   "s"   #'vc-create-tag
-  "u"   #'vc-revert
+  "u"   #'vc-revert                     ; The traditional binding.
+  "@"   #'vc-revert                     ; Following VC-Dir's binding.
   "v"   #'vc-next-action
   "+"   #'vc-update
   ;; I'd prefer some kind of symmetry with vc-update:
