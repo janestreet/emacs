@@ -3445,9 +3445,7 @@ Prepare every function for final compilation and drive the C back-end."
    for dir in dirs
    for abs-filename = (expand-file-name rel-filename dir)
    unless (file-exists-p dir)
-     do (ignore-errors
-          (make-directory dir t)
-          (cl-return abs-filename))
+     do (ignore-errors (make-directory dir t))
    when (file-writable-p abs-filename)
      do (cl-return abs-filename)
    ;; Default to some temporary directory if no better option was
