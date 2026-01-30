@@ -218,6 +218,7 @@ See also `diff-mode-read-only-map'."
   "<mouse-2>" #'diff-goto-source
   "o" #'diff-goto-source                ; other-window
   "<remap> <undo>" #'diff-undo
+  "s" #'diff-split-hunk
 
   ;; The foregoing commands don't affect buffers beyond this one.
   ;; The following command is the only one that has a single-letter
