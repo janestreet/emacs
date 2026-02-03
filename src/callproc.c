@@ -24,6 +24,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "termchar.h"
 
 #ifdef MSDOS
 extern char **environ;
@@ -1159,6 +1160,118 @@ usage: (call-process-region START END PROGRAM &optional DELETE BUFFER DISPLAY &r
 		      empty_input ? make_invalid_specpdl_ref () : count);
   return unbind_to (count, val);
 }
+
+/* Run an external command with terminal control.
+   This is similar to sys_subshell, but runs a specified command
+   instead of a shell. The command is passed as a Lisp string for
+   the program name and a Lisp list of string arguments.
+   TTY_FD is the file descriptor for the terminal to use.  */
+
+static Lisp_Object
+call_process_with_terminal_control (Lisp_Object program, Lisp_Object args, int tty_fd)
+{
+  Lisp_Object current_dir = get_current_directory (true);
+
+  {
+    int ok;
+    Lisp_Object program_arg = program;
+
+    ok = openp (Vexec_path, program_arg, Vexec_suffixes, &program,
+		make_fixnum (X_OK), false, false, NULL);
+    if (ok < 0)
+      report_file_error ("Searching for program", program_arg);
+  }
+  program = ENCODE_FILE (remove_slash_colon (program));
+
+  /* Allocate argv array (program name + args + NULL). */
+  USE_SAFE_ALLOCA;
+  char **argv;
+  SAFE_NALLOCA (argv, 1, list_length(args) + 2);
+  argv[0] = SSDATA (program);
+  ptrdiff_t i = 1;
+  /* FIXME: We don't do any encoding of the arguments.  We should share
+     code to do that with call_process/create_process/Fmake_process */
+  for (Lisp_Object tail = args; CONSP (tail); tail = XCDR (tail))
+    argv[i++] = SSDATA (XCAR (tail));
+  argv[i] = NULL;
+
+  char **env = make_environment_block (current_dir);
+
+  sigset_t oldset;
+  child_signal_init ();
+  block_input ();
+  block_child_signal (&oldset);
+
+  pid_t pid;
+  int child_errno = emacs_spawn (&pid, tty_fd, tty_fd, tty_fd, argv, env,
+				 SSDATA (current_dir), NULL, false, false, &oldset);
+
+  if (pid > 0)
+    synch_process_pid = pid;
+
+  unblock_child_signal (&oldset);
+  unblock_input ();
+
+  SAFE_FREE ();
+
+  if (pid < 0)
+    report_file_errno (CHILD_SETUP_ERROR_DESC, Qnil, child_errno);
+
+  int status;
+  bool wait_ok = wait_for_termination (pid, &status, 0);
+
+  synch_process_pid = 0;
+
+  if (!wait_ok)
+    return build_unibyte_string ("internal error");
+
+  if (WIFSIGNALED (status))
+    {
+      const char *signame;
+
+      synchronize_system_messages_locale ();
+      signame = strsignal (WTERMSIG (status));
+
+      if (signame == 0)
+	signame = "unknown";
+
+      return code_convert_string_norecord (build_string (signame),
+					   Vlocale_coding_system, 0);
+    }
+
+  eassert (WIFEXITED (status));
+  return make_fixnum (WEXITSTATUS (status));
+}
+
+
+DEFUN ("call-process-with-terminal-control", Fcall_process_with_terminal_control,
+       Scall_process_with_terminal_control, 2, 2, 0,
+       doc: /* Run PROGRAM with ARGS, giving it control of the terminal.
+Emacs temporarily gives up control of the terminal, runs the program,
+and when the program exits, Emacs resumes and takes control back. */)
+  (Lisp_Object program, Lisp_Object args)
+{
+  specpdl_ref count = SPECPDL_INDEX ();
+  int old_height, old_width;
+  int width, height;
+
+  /* Copied from Fsuspend_emacs */
+  int tty_fd = fileno (CURTTY ()->input);
+  get_tty_size (tty_fd, &old_width, &old_height);
+  reset_all_sys_modes ();
+  record_unwind_protect_void (init_all_sys_modes);
+
+  /* Run the command */
+  Lisp_Object retval = call_process_with_terminal_control (program, args, tty_fd);
+
+  /* Check if terminal/window size has changed */
+  get_tty_size (fileno (CURTTY ()->input), &width, &height);
+  if (width != old_width || height != old_height)
+    change_frame_size (SELECTED_FRAME (), width, height, false, false, false);
+
+  return unbind_to (count, retval);
+}
+
 
 static char **
 add_env (char **env, char **new_env, char *string)
@@ -2246,6 +2359,7 @@ the system.  */);
   defsubr (&Scall_process);
   defsubr (&Sgetenv_internal);
   defsubr (&Scall_process_region);
+  defsubr (&Scall_process_with_terminal_control);
 
   DEFSYM (Qafter_insert_file_set_buffer_file_coding_system,
 	  "after-insert-file-set-buffer-file-coding-system");
