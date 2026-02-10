@@ -78,6 +78,12 @@
 ;; This project type can also be used for non-VCS controlled
 ;; directories, see the variable `project-vc-extra-root-markers'.
 ;;
+;; Some of the methods on this backend cache their computations for time
+;; determined either by variable `project-vc-cache-timeout' or
+;; `project-vc-non-essential-cache-timeout', depending on whether the
+;; MAYBE-PROMPT argument to `project-current' is non-nil, or the value
+;; of `non-essential' when project methods are called.
+;;
 ;; Utils:
 ;;
 ;; `project-combine-directories' and `project-subtract-directories',
@@ -566,16 +572,72 @@ project backend implementation of `project-external-roots'.")
 
 See `project-vc-extra-root-markers' for the marker value format.")
 
-;; FIXME: Should perhaps use `vc--repo-*prop' functions
-;;        (after promoting those to public).  --spwhitton
+(defvar project-vc-cache-timeout '((file-remote-p . nil)
+                                   (always . 2))
+  "Number of seconds to cache a value in VC-aware project methods.
+It can be nil, a number, or an alist where
+the key is a predicate, and the value is a number.
+Set to nil to disable time-based expiration.")
+
+(defvar project-vc-non-essential-cache-timeout '((file-remote-p . nil)
+                                                 (always . 300))
+  "Number of seconds to cache non-essential information.
+Unlike `project-vc-cache-timeout' intended for interactive
+commands, this variable has much more aggressive caching,
+and is intended for \"background\" things like `project-mode-line'
+indicators and `project-uniquify-dirname-transform'.
+It is used when `non-essential' is non-nil.")
+
+(defun project--get-cached (dir key)
+  (let ((cached (vc-file-getprop dir key))
+        (current-time (float-time)))
+    (when (and (numberp (cdr cached))
+               ;; Support package upgrade mid-session.
+               (let* ((project-vc-cache-timeout
+                       (if non-essential
+                           project-vc-non-essential-cache-timeout
+                         project-vc-cache-timeout))
+                      (timeout
+                       (cond
+                        ((numberp project-vc-cache-timeout)
+                         project-vc-cache-timeout)
+                        ((null project-vc-cache-timeout)
+                         nil)
+                        ((listp project-vc-cache-timeout)
+                         (cdr
+                          (seq-find (lambda (pair)
+                                      (and (functionp (car pair))
+                                           (funcall (car pair) dir)))
+                                    project-vc-cache-timeout)))
+                        (t nil))))
+                 (or (null timeout)
+                     (< (- current-time (cdr cached)) timeout))))
+      (car cached))))
+
+(defun project--set-cached (dir key value)
+  (vc-file-setprop dir key (cons value (float-time))))
+
+;; TODO: We can have our own, separate obarray.
+(defun project--clear-cache ()
+  (obarray-map
+   (lambda (sym)
+     (if (get sym 'project-vc)
+         (put sym 'project-vc nil)))
+   vc-file-prop-obarray))
+
 (defun project-try-vc (dir)
-  ;; FIXME: Learn to invalidate when the value changes:
-  ;; `project-vc-merge-submodules' or `project-vc-extra-root-markers'.
-  (or (vc-file-getprop dir 'project-vc)
-      ;; FIXME: Cache for a shorter time (bug#78545).
-      (let ((res (project-try-vc--search dir)))
-        (and res (vc-file-setprop dir 'project-vc res))
-        res)))
+  "Returns a project value corresponding to DIR from the VC-aware backend.
+
+The value is cached, and depending on whether MAYBE-PROMPT was non-nil
+in the `project-current' call, the timeout is determined by
+`project-vc-cache-timeout' or `project-vc-non-essential-cache-timeout'."
+  (let ((cached (project--get-cached dir 'project-vc)))
+    (if (eq cached 'none)
+        nil
+      (or cached
+          (let ((res (project-try-vc--search dir)))
+            (project--set-cached dir 'project-vc (or res 'none))
+            res)))))
 
 (defun project-try-vc--search (dir)
   (let* ((backend-markers
@@ -863,13 +925,24 @@ DIRS must contain directory names."
   (cl-set-difference files dirs :test #'file-in-directory-p))
 
 (defun project--value-in-dir (var dir)
+  (alist-get
+   var
+   (let ((cached (project--get-cached dir 'project-vc-dir-locals)))
+     (if (eq cached 'none)
+         nil
+       (or cached
+           (let ((res (project--read-dir-locals dir)))
+             (project--set-cached dir 'project-vc-dir-locals (or res 'none))
+             res))))
+   (symbol-value var)))
+
+(defun project--read-dir-locals (dir)
   (with-temp-buffer
     (setq default-directory dir)
+    ;; Don't use `hack-local-variables-apply' to avoid setting modes.
     (let ((enable-local-variables :all))
       (hack-dir-local-variables))
-    ;; Don't use `hack-local-variables-apply' to avoid setting modes.
-    (alist-get var file-local-variables-alist
-               (symbol-value var))))
+    file-local-variables-alist))
 
 (cl-defmethod project-buffers ((project (head vc)))
   (let* ((root (expand-file-name (file-name-as-directory (project-root project))))
@@ -891,6 +964,11 @@ DIRS must contain directory names."
     (nreverse bufs)))
 
 (cl-defmethod project-name ((project (head vc)))
+  "Returns the name of this VC-aware type PROJECT.
+
+The value is cached, and depending on whether `non-essential' is nil,
+the timeout is determined by `project-vc-cache-timeout' or
+`project-vc-non-essential-cache-timeout'."
   (or (project--value-in-dir 'project-vc-name (project-root project))
       (cl-call-next-method)))
 
@@ -2249,6 +2327,7 @@ more projects.  After finishing, a message is printed summarizing
 the progress.  The function returns the number of detected
 projects."
   (interactive "DDirectory: \nP")
+  (project--clear-cache)
   (project--ensure-read-project-list)
   (let ((dirs (if recursive
                   (directory-files-recursively dir "" t)
@@ -2277,6 +2356,7 @@ projects."
 (defun project-forget-zombie-projects ()
   "Forget all known projects that don't exist any more."
   (interactive)
+  (project--clear-cache)
   (dolist (proj (project-known-project-roots))
     (when (and (if project-prune-zombie-projects
                    (funcall project-prune-zombie-projects proj)
@@ -2291,6 +2371,7 @@ remove all known projects.  After finishing, a message is printed
 summarizing the progress.  The function returns the number of
 forgotten projects."
   (interactive "DDirectory: \nP")
+  (project--clear-cache)
   (let ((count 0))
     (if recursive
         (dolist (proj (project-known-project-roots))
@@ -2471,8 +2552,9 @@ If you set `uniquify-dirname-transform' to this function,
 slash-separated components from `project-name' will be appended to
 the buffer's directory name when buffers from two different projects
 would otherwise have the same name."
-  (if-let (proj (project-current nil dirname))
-      (let ((root (project-root proj)))
+  (if-let* ((proj (project-current nil dirname)))
+      (let ((root (project-root proj))
+            (non-essential t))
         (expand-file-name
          (file-name-concat
           (file-name-directory root)
@@ -2481,27 +2563,6 @@ would otherwise have the same name."
     dirname))
 
 ;;; Project mode-line
-
-(defvar project-name-cache-timeout 300
-  "Number of seconds to cache the project name.
-Used by `project-name-cached'.")
-
-(defun project-name-cached (dir)
-  "Return the cached project name for the directory DIR.
-Until it's cached, retrieve the project name using `project-current'
-and `project-name', then put the name to the cache for the time defined
-by the variable `project-name-cache-timeout'.  This function is useful
-for project indicators such as on the mode line."
-  (let ((cached (vc-file-getprop dir 'project-name))
-        (current-time (float-time)))
-    (if (and cached (< (- current-time (cdr cached))
-                       project-name-cache-timeout))
-        (let ((value (car cached)))
-          (if (eq value 'none) nil value))
-      (let ((res (when-let* ((project (project-current nil dir)))
-                   (project-name project))))
-        (vc-file-setprop dir 'project-name (cons (or res 'none) current-time))
-        res))))
 
 ;;;###autoload
 (defcustom project-mode-line nil
@@ -2539,7 +2600,9 @@ value is `non-remote', show the project name only for local files."
     ;; 'last-coding-system-used' when reading the project name
     ;; from .dir-locals.el also enables flyspell-mode (bug#66825).
     (when-let* ((last-coding-system-used last-coding-system-used)
-                (project-name (project-name-cached default-directory)))
+                (non-essential t)
+                (project (project-current))
+                (project-name (project-name project)))
       (concat
        " "
        (propertize

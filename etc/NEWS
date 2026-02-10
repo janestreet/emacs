@@ -452,6 +452,11 @@ project name.
 This will keep the fixed order of tabs, even after switching between
 them.
 
+*** The "VC-aware" project backend caches the current project and its name.
+The duration for which the values are cached depends on whether it's
+called from 'non-essential' context, and it determined by variables
+'project-vc-cache-timeout' and 'project-vc-non-essential-cache-timeout'.
+
 ** Help
 
 *** New command 'help-find-source'.
