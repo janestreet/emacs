@@ -962,7 +962,7 @@ for the backend you use."
 		 (repeat :tag "Argument List" :value ("") string))
   :version "25.1")
 
-(defcustom vc-log-show-limit 2000
+(defcustom vc-log-show-limit 500
   "Limit the number of items shown by the VC log commands.
 Zero means unlimited.
 Not all VC backends are able to support this feature."
@@ -3516,11 +3516,12 @@ or if PL-RETURN is `limit-unsupported'."
         (goto-char (point-max))
         (insert "\n")
         (insert-text-button
-         "Show 2X entries"
+         "Show 4X entries"
          'action (lambda (&rest _ignore)
-                   (vc-print-log-internal
-                    log-view-vc-backend log-view-vc-fileset
-                    working-revision nil (* 2 limit)))
+                   (let ((new-limit (read-number "How many: " (* 4 limit))))
+                     (vc-print-log-internal
+                      log-view-vc-backend log-view-vc-fileset
+                      working-revision nil new-limit)))
          'help-echo
          "Show the log again, and double the number of log entries shown")
         (insert "    ")
