@@ -1382,5 +1382,27 @@ final or penultimate step during initialization."))
                  (props-out (object-intervals out)))
             (should (equal props-out props-in))))))))
 
+(ert-deftest subr-multiple-command-partition-arguments ()
+  (let ((system-type 'gnu/linux)
+        (command-line-max-length 35)
+        (process-environment '("BLAH=blah" "BLAH2=blah2"))) ; Length 20.
+    (should (equal (multiple-command-partition-arguments "cmd"
+                                                         '("foo" "bar" "baz"))
+                   '(("foo" "bar" "baz"))))
+    (should (equal (multiple-command-partition-arguments "cmd"
+                                                         '("foo" "bar" "bazzzzzz"))
+                   '(("foo" "bar") ("bazzzzzz"))))
+    (should-error (multiple-command-partition-arguments "cmd"
+                                                        '("foo" "bar"
+                                                          "bazzzzzzzzzzz"))))
+  (let ((system-type 'windows-nt)
+        (command-line-max-length 30))
+    (should (equal (multiple-command-partition-arguments "cmd"
+                                                         '("foo" "bar" "baz"))
+                   '(("foo" "bar" "baz"))))
+    (should (equal (multiple-command-partition-arguments "cmd"
+                                                         '("foo" "bar" "bazzzzzz"))
+                   '(("foo" "bar") ("bazzzzzz"))))))
+
 (provide 'subr-tests)
 ;;; subr-tests.el ends here
