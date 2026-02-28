@@ -187,6 +187,7 @@ Another is that undo information is not kept."
   (let ((camefrom (current-buffer))
 	(olddir default-directory))
     (set-buffer (get-buffer-create buf))
+    ;; If there's some previous async process still running, just kill it.
     (let ((oldproc (get-buffer-process (current-buffer))))
       ;; If we wanted to wait for oldproc to finish before doing
       ;; something, we'd have used vc-eval-after.
@@ -445,8 +446,6 @@ that is inserted into the command line before the filename."
              (squeezed (remq nil flags))
              (inhibit-read-only t)
              (status 0))
-        ;; If there's some previous async process still running,
-        ;; just kill it.
         (when files
           (setq squeezed (nconc squeezed files)))
         (let (;; Since some functions need to parse the output
