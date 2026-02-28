@@ -2282,6 +2282,7 @@ show_help_echo (Lisp_Object help, Lisp_Object window, Lisp_Object object,
 /* Input of single characters from keyboard.  */
 
 static Lisp_Object kbd_buffer_get_event (KBOARD **kbp, bool *used_mouse_menu,
+					 struct frame **event_frame,
 					 struct timespec *end_time);
 static void record_char (Lisp_Object c);
 
@@ -2327,7 +2328,8 @@ read_event_from_main_queue (struct timespec *end_time,
   restore_getcjmp (local_getcjmp);
   if (!end_time)
     timer_start_idle ();
-  c = kbd_buffer_get_event (&kb, used_mouse_menu, end_time);
+  struct frame *frame;
+  c = kbd_buffer_get_event (&kb, used_mouse_menu, &frame, end_time);
   unbind_to (count, Qnil);
 
   if (! NILP (c) && (kb != current_kboard))
@@ -2345,9 +2347,26 @@ read_event_from_main_queue (struct timespec *end_time,
       else
         XSETCDR (last, list1 (c));
       kb->kbd_queue_has_data = true;
-      c = Qnil;
       if (single_kboard)
-        goto start;
+	{
+	  /* Typing and clicking in a locked frame is confusing because
+	     it seems like Emacs has completely locked up (bug#79892).
+	     Show a message about what's happening.  */
+	  /* FIXME: We also display the message in the unlocked frame.
+	     Can we avoid that?  */
+	  if (frame
+	      && (FIXNUMP (c) || (EVENT_HAS_PARAMETERS (c)
+				  && EQ (EVENT_HEAD_KIND (EVENT_HEAD (c)),
+					 Qmouse_click))))
+	    {
+	      AUTO_STRING (locked, "Frame is locked while another"
+			   " waits for input"
+			   " or is otherwise in a recursive edit");
+	      message3_frame (locked, frame);
+	    }
+	  c = Qnil;
+	  goto start;
+	}
       current_kboard = kb;
       return make_fixnum (-2);
     }
@@ -3972,6 +3991,7 @@ kbd_buffer_get_event_2 (Lisp_Object val)
 static Lisp_Object
 kbd_buffer_get_event (KBOARD **kbp,
                       bool *used_mouse_menu,
+                      struct frame **event_frame,
                       struct timespec *end_time)
 {
   Lisp_Object obj, str;
@@ -3985,6 +4005,8 @@ kbd_buffer_get_event (KBOARD **kbp,
 
   had_pending_conversion_events = false;
 #endif
+
+  *event_frame = NULL;
 
 #ifdef subprocesses
   if (kbd_on_hold_p () && kbd_buffer_nr_stored () < KBD_BUFFER_SIZE / 4)
@@ -4145,6 +4167,9 @@ kbd_buffer_get_event (KBOARD **kbp,
       *kbp = event_to_kboard (&event->ie);
       if (*kbp == 0)
 	*kbp = current_kboard;  /* Better than returning null ptr?  */
+
+      if (FRAMEP (event->ie.frame_or_window))
+	*event_frame = XFRAME (event->ie.frame_or_window);
 
       obj = Qnil;
 
@@ -4442,13 +4467,14 @@ kbd_buffer_get_event (KBOARD **kbp,
   /* Try generating a mouse motion event.  */
   else if (some_mouse_moved ())
     {
-      struct frame *f, *movement_frame = some_mouse_moved ();
+      struct frame *f;
       Lisp_Object bar_window;
       enum scroll_bar_part part;
       Lisp_Object x, y;
       Time t;
 
-      f = movement_frame;
+      *event_frame = some_mouse_moved ();
+      f = *event_frame;
       *kbp = current_kboard;
       /* Note that this uses F to determine which terminal to look at.
 	 If there is no valid info, it does not store anything
@@ -4485,8 +4511,8 @@ kbd_buffer_get_event (KBOARD **kbp,
 	obj = make_lispy_movement (f, bar_window, part, x, y, t);
 
       if (!NILP (obj))
-	Vlast_event_device = (STRINGP (movement_frame->last_mouse_device)
-			      ? movement_frame->last_mouse_device
+	Vlast_event_device = (STRINGP ((*event_frame)->last_mouse_device)
+			      ? (*event_frame)->last_mouse_device
 			      : virtual_core_pointer_name);
     }
 #ifdef HAVE_X_WINDOWS
