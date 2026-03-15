@@ -897,7 +897,7 @@ overlaps.
 When called from Lisp with optional arguments BEG and END non-nil, kill
 all hunks overlapped by the region from BEG to END as though called
 interactively with an active region delimited by BEG and END."
-  (interactive "R")
+  (interactive (list (use-region-beginning) (use-region-end)))
   (when (xor beg end)
     (error "Invalid call to `diff-hunk-kill'"))
   (diff--revert-kill-hunks beg end nil))
