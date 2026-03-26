@@ -3858,6 +3858,8 @@ enum handlertype {
   CATCHER_ALL,                  /* Wildcard which catches all 'throw's.
                                    'tag_or_ch' is unused.
                                    'val' holds the retval during longjmp.  */
+  CATCHER_ALL_DEBUGGABLE,       /* Like CATCHER_ALL, but does not suppress the
+                                   debugger. */
   HANDLER_BIND,                 /* Entry for 'handler-bind'.
                                    'tag_or_ch' holds the list of conditions.
                                    'val' holds the handler function.
