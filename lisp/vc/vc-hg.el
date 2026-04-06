@@ -272,7 +272,8 @@ If `ask', you will be prompted for a branch type."
   (ignore-errors
     (with-output-to-string
       (vc-hg-command standard-output 0 nil
-                     "log" "-r" "." "--template" "{rev}"))))
+                     "log" "-r" "." "--template"
+                     (if vc-use-short-revision "{node|short}" "{node}")))))
 
 (defcustom vc-hg-symbolic-revision-styles
   '(builtin-active-bookmark
