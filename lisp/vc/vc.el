@@ -5117,6 +5117,8 @@ option to non-nil to skip the prompting."
   :group 'vc
   :version "31.1")
 
+(declare-function vc-dir-resynch-file "vc-dir")
+
 (defun vc--apply-to-other-working-tree
     (directory mirror-dir fileset patch-string move)
   "Workhorse routine for copying/moving changes to other working trees.
