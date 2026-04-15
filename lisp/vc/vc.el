@@ -4448,9 +4448,9 @@ called from Lisp with optional argument OK-IF-ALREADY-EXISTS non-nil."
       ;; Mercurial) will fail if asked to move a directory containing
       ;; only untracked files.
       (unless (and dirp
-                   (all (lambda (x)
-                          (memq (cadr x) '(ignored unregistered)))
-                        (vc-dir-status-files old (list old) backend)))
+                   (cl-every (lambda (x)
+                               (memq (cadr x) '(ignored unregistered)))
+                             (vc-dir-status-files old (list old) backend)))
         (vc-call-backend backend 'rename-file old new)))
     (vc-file-clearprops old)
     (vc-file-clearprops new)
