@@ -4886,8 +4886,8 @@ about encoding which is not currently made available to Lisp."
     (when spaces-and-quotation
       ;; On MS-Windows every single argument will need to be quoted
       ;; regardless of whether it contains any whitespace etc..
-      (incf fixed-args-len 2)
-      (incf fixed-args-len (* 3 (length command))))
+      (cl-incf fixed-args-len 2)
+      (cl-incf fixed-args-len (* 3 (length command))))
     (dolist (arg arguments)
       (let ((len (if spaces-and-quotation
                      (+ (length arg) 3)
@@ -4895,7 +4895,7 @@ about encoding which is not currently made available to Lisp."
         (cond ((<= (+ fixed-args-len next-len len)
                    (connection-local-value command-line-max-length))
                (push arg next)
-               (incf next-len len))
+               (cl-incf next-len len))
               ((<= (+ fixed-args-len len)
                    (connection-local-value command-line-max-length))
                (push (nreverse next) all-partitions)
