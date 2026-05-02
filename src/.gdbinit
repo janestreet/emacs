@@ -41,14 +41,12 @@ handle SIGTSTP nopass
 handle SIGUSR1 noprint pass
 handle SIGUSR2 noprint pass
 
+# Similarly with SIGPIPE (happens, e.g., with GnuTLS).
+handle SIGPIPE nostop noprint pass
+
 # Don't pass SIGALRM to Emacs.  This makes problems when
 # debugging.
 handle SIGALRM ignore
-
-# On selection send failed.
-if defined_HAVE_PGTK
-  handle SIGPIPE nostop noprint
-end
 
 # Use $bugfix so that the value isn't a constant.
 # Using a constant runs into GDB bugs sometimes.
