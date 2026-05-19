@@ -5569,7 +5569,7 @@ lock machinery calls us again."
      (cl-loop
       with column = 0 with p-beg = 0 with p-end = 0
       for i from 0 below (length data) by 5
-      when (> (aref data i) 0) do
+      unless (zerop (aref data i)) do
         (setq column 0)
         (forward-line (aref data i))
       unless (< (point) beg) do
