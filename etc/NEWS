@@ -95,6 +95,14 @@ OS selection instead of terminal-specific keybindings.
 You can keep the old behavior by putting `(xterm-mouse-mode -1)' in your
 init file.
 
+** VC
+
++++
+*** VC-Dir outgoing revisions count is now asynchronous.
+This means it won't get in your way even if it's slow for your
+repository.  As such, the 'vc-dir-show-outgoing-count' option is now
+obsolete.
+
 
 * Incompatible Changes in Emacs 30.1
 
