@@ -3405,6 +3405,14 @@ completion function was called, 'etags-regen-mode' ensured that tags
 were created.  This has been disabled, and the new user option
 'etags-regen-create-on-completion' can be used to enable it again.
 
+** VC
+
++++
+*** VC-Dir outgoing revisions count is now asynchronous.
+This means it won't get in your way even if it's slow for your
+repository.  As such, the 'vc-dir-show-outgoing-count' option is now
+obsolete.
+
 ** Miscellaneous
 
 *** 'tooltip-mode' now shows tooltips on TTY frames after a delay.
