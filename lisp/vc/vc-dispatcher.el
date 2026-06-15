@@ -150,14 +150,6 @@ logged in the *Messages* buffer, but not displayed."
   :type 'boolean
   :group 'vc)
 
-(defcustom vc-display-failed-async-commands nil
-  "If non-nil, display VC async command buffers when the command fails.
-Considers VC async commands to have failed whenever they die due to a
-fatal signal or exit with a non-zero status."
-  :type 'boolean
-  :version "31.1"
-  :group 'vc)
-
 ;; Variables the user doesn't need to know about.
 
 (defvar vc-log-operation nil)
@@ -165,8 +157,6 @@ fatal signal or exit with a non-zero status."
   "Name of the hook run at the end of `vc-finish-logentry'.
 BEWARE: Despite its name, this variable is not itself a hook!")
 (defvar vc-log-fileset)
-(defvar vc--inhibit-message nil
-  "Value for `inhibit-message' in `vc--command-message' and similar.")
 
 ;; In a log entry buffer, this is a local variable
 ;; that points to the buffer for which it was made
@@ -375,12 +365,6 @@ Intended to be used as the value of `vc-filter-command-function'."
     (list (car edited) file-or-list
           (nconc (cdr edited) (and files-separator-p '("--"))))))
 
-(defun vc--command-message (&rest args)
-  "Call `message' on ARGS taking into account relevant VC variables."
-  (when vc-command-messages
-    (let ((inhibit-message vc--inhibit-message))
-      (apply #'message args))))
-
 ;;;###autoload
 (defun vc-do-command (buffer okstatus command file-or-list &rest flags)
   "Execute a slave command, notifying user and checking for errors.
@@ -403,7 +387,7 @@ case, and the process object in the asynchronous case."
 	;; a such way that the important parts are at the beginning,
 	;; due to potential truncation of long messages.
 	(message-truncate-lines t)
-        (vc--inhibit-message
+        (vc-inhibit-message
 	 (or (eq vc-command-messages 'log)
 	     (eq (selected-window) (active-minibuffer-window)))))
     (save-current-buffer
@@ -450,8 +434,10 @@ case, and the process object in the asynchronous case."
 		       (let ((process-connection-type nil))
 		         (apply #'start-file-process command
                                 (current-buffer) command squeezed))))
-		  (vc--command-message "Running in background: %s"
-				       full-command)
+		  (when vc-command-messages
+		    (let ((inhibit-message vc-inhibit-message))
+		      (message "Running in background: %s"
+                               full-command)))
                   ;; Get rid of the default message insertion, in case
                   ;; we don't set a sentinel explicitly.
 		  (set-process-sentinel proc #'ignore)
@@ -460,13 +446,13 @@ case, and the process object in the asynchronous case."
 		  (when vc-command-messages
 		    (vc-run-delayed
 		      (let ((message-truncate-lines t)
-			    (inhibit-message vc--inhibit-message))
-		        (message "%s in background: %s"
-				 (if (zerop (process-exit-status proc))
-				     "Done" "Failed")
+			    (inhibit-message vc-inhibit-message))
+		        (message "Done in background: %s"
                                  full-command)))))
 	      ;; Run synchronously
-	      (vc--command-message "Running in foreground: %s" full-command)
+	      (when vc-command-messages
+	        (let ((inhibit-message vc-inhibit-message))
+		  (message "Running in foreground: %s" full-command)))
 	      (let ((buffer-undo-list t))
 	        (setq status (apply #'process-file
                                     command nil t nil squeezed)))
@@ -485,8 +471,10 @@ case, and the process object in the asynchronous case."
                            (format "status %d" status)
                          status)
 		       full-command))
-	      (vc--command-message "Done (status=%d): %s"
-				   status full-command)))
+	      (when vc-command-messages
+	        (let ((inhibit-message vc-inhibit-message))
+		  (message "Done (status=%d): %s"
+                           status full-command)))))
 	  (vc-run-delayed
 	    (run-hook-with-args 'vc-post-command-functions
 			        command file-or-list flags))
@@ -530,10 +518,7 @@ Display the buffer in some window, but don't select it."
                                     (time-to-seconds
                                      (time-since start-time))))
                            (set-marker (process-mark proc)
-                                       (point)))))
-                     (when (and vc-display-failed-async-commands
-                                (not (zerop (process-exit-status proc))))
-                       (vc--display-async-command-buffer buffer)))))))
+                                       (point))))))))))
     (setq buffer (get-buffer-create buffer))
     (if (get-buffer-process buffer)
 	(error "Another VC action on %s is running" root))
