@@ -1141,11 +1141,11 @@ hg binary."
 (defun vc-hg-previous-revision (_file rev)
   ;; We can't simply decrement by 1, because that revision might be
   ;; e.g. on a different branch (bug#22032).
-  (with-temp-buffer
-    (and (eq 0
-             (vc-hg-command t nil nil "id" "-n" "-r" (concat rev "^")))
-         ;; Trim the trailing newline.
-         (buffer-substring (point-min) (1- (point-max))))))
+  (with-output-to-string
+           (vc-hg-command standard-output 0 nil "log"
+                          "-r" (format "revset(%s~1)" rev)
+                          "--template" (if vc-use-short-revision
+                                           "{node|short}" "{node}"))))
 
 (defun vc-hg-next-revision (_file rev)
   (let ((newrev (1+ (string-to-number rev)))
