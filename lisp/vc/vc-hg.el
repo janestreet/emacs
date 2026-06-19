@@ -1849,6 +1849,11 @@ This is based on the following assumptions:
 (ii) there is only one remote head for the current branch."
   (assq 'branch (vc-hg--working-branch)))
 
+(declare-function vc-standard-log-outgoing "vc")
+
+(defun vc-hg-log-outgoing (buffer upstream-location)
+  (vc-standard-log-outgoing 'Hg buffer upstream-location 'skip-mergebase))
+
 (provide 'vc-hg)
 
 ;;; vc-hg.el ends here
