@@ -1444,16 +1444,19 @@ uses OVERLAY."
    (run-with-idle-timer
     0.2 nil
     (lambda ()
-      (let ((display-buffer-overriding-action
-             '(display-buffer-no-window (allow-no-window . t)))
-	    (enable-local-variables
-             (if (memq enable-local-variables '(:safe :all nil))
-		 enable-local-variables
-               ;; Ignore other values that query.
-               :safe))
-            (unknown (propertize "<<unknown>>" 'face 'vc-dir-header-value))
-            (buf (generate-new-buffer " *temp*" t))
-            proc)
+      (let* ((default-directory
+	      (buffer-local-value 'default-directory
+				  (overlay-buffer overlay)))
+	     (display-buffer-overriding-action
+              '(display-buffer-no-window (allow-no-window . t)))
+	     (enable-local-variables
+              (if (memq enable-local-variables '(:safe :all nil))
+		  enable-local-variables
+		;; Ignore other values that query.
+		:safe))
+             (unknown (propertize "<<unknown>>" 'face 'vc-dir-header-value))
+             (buf (generate-new-buffer " *temp*" t))
+             proc)
         (with-current-buffer buf
           (condition-case _
               (progn
