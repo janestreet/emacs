@@ -226,7 +226,9 @@ If `ask', you will be prompted for a branch type."
   (setq file (expand-file-name file))
   (let*
       ((status nil)
-       (default-directory (file-name-directory file))
+       (root (vc-hg-root file))
+       (file (file-relative-name file root))
+       (default-directory root)
        (out
         (with-output-to-string
           (with-current-buffer
