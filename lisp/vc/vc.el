@@ -4780,8 +4780,9 @@ mark."
   (interactive "r")
   (let* ((lfrom (line-number-at-pos from t))
          (lto   (line-number-at-pos (1- to) t))
-         (file buffer-file-name)
-         (backend (vc-backend file))
+         (fileset (vc-deduce-fileset t))
+         (backend (car fileset))
+         (file (caadr fileset))
          (buf (get-buffer-create "*VC-history*")))
     (unless backend
       (error "Buffer is not version controlled"))
@@ -4791,7 +4792,7 @@ mark."
     (with-current-buffer buf
       (vc-call-backend backend 'region-history-mode)
       (setq-local log-view-vc-backend backend)
-      (setq-local log-view-vc-fileset (list file))
+      (setq-local log-view-vc-fileset (cadr fileset))
       (setq-local revert-buffer-function
                   (lambda (_ignore-auto _noconfirm)
                     (with-current-buffer buf
