@@ -40,6 +40,15 @@ incorrectly in rare cases.
 This allows specifying the directory where the user unit file for
 systemd is installed; the default is '${prefix}/usr/lib/systemd/user'.
 
+** Mode Line
+
+*** Popup menus invoked from mode line select another window.
+Clicking mode line elements in inactive windows now first
+selects another window before displaying the menu, so the
+commands invoked from the menu will operate on the right buffer.
+You can restore the previous behavior by removing
+'mode-line-window-select' from 'x-pre-popup-menu-hook'.
+
 
 * Startup Changes in Emacs 31.1
 
