@@ -5569,6 +5569,11 @@ lock machinery calls us again."
      (cl-loop
       with column = 0 with p-beg = 0 with p-end = 0
       for i from 0 below (length data) by 5
+      ;; Strictly speaking, all of the elements in `data' are supposed
+      ;; to be unsigned ints, but the specification also allows both
+      ;; overlapping and multi-line tokens.  Two overlapping tokens
+      ;; which are both multi-line can only be expressed with a
+      ;; backwards (negative) line movement.  (bug#81080)
       unless (zerop (aref data i)) do
         (setq column 0)
         (forward-line (aref data i))
