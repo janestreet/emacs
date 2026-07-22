@@ -1544,6 +1544,7 @@ uses OVERLAY."
                 (vc-incoming-outgoing-internal backend nil
                                                (current-buffer) 'log-outgoing)
                 (setq proc (get-buffer-process (current-buffer)))
+                (set-process-query-on-exit-flag proc nil)
                 (overlay-put overlay 'proc proc)
                 (vc-run-delayed
                   (unwind-protect
