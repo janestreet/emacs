@@ -2739,15 +2739,12 @@ symbol property are ignored.  */)
 		   build_string ("(any string)"));
 	}
 
-      /* It is a true unshadowed match.  Record it, unless it's already
-	 been seen (as could happen when inheriting keymaps).  */
-      if (NILP (Fmember (sequence, found))
-	  /* Filter out non key events.  */
-	  && !(VECTORP (sequence)
-	       && ASIZE (sequence) == 1
-	       && SYMBOLP (AREF (sequence, 0))
-	       && !NILP (Fget (AREF (sequence, 0), Qnon_key_event))))
-	found = Fcons (sequence, found);
+      /* Filter out non-key events. */
+      if (VECTORP (sequence)
+	  && ASIZE (sequence) == 1
+	  && SYMBOLP (AREF (sequence, 0))
+	  && !NILP (Fget (AREF (sequence, 0), Qnon_key_event)))
+	continue;
 
       /* If firstonly is Qnon_ascii, then we can return the first
 	 binding we find.  If firstonly is not Qnon_ascii but not
@@ -2758,6 +2755,11 @@ symbol property are ignored.  */)
       else if (!NILP (firstonly)
 	       && 2 == preferred_sequence_p (sequence))
 	return sequence;
+
+      /* It is a true unshadowed match.  Record it, unless it's already
+	 been seen (as could happen when inheriting keymaps).  */
+      if (NILP (Fmember (sequence, found)))
+	found = Fcons (sequence, found);
     }
 
   found = Fnreverse (found);

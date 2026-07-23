@@ -436,8 +436,12 @@ g .. h		foo
   (keymap-set global-map "<keymap-tests-event>" #'keymap-tests-command)
   (should (equal (where-is-internal 'keymap-tests-command)
                  '([keymap-tests-event] [3 103])))
+  (should (equal (where-is-internal 'keymap-tests-command nil 'non-ascii)
+                 [keymap-tests-event]))
   (make-non-key-event 'keymap-tests-event)
-  (should (equal (where-is-internal 'keymap-tests-command) '([3 103]))))
+  (should (equal (where-is-internal 'keymap-tests-command) '([3 103])))
+  (should (equal (where-is-internal 'keymap-tests-command nil 'non-ascii)
+                 [3 103])))
 
 (ert-deftest keymap-set-consistency ()
   (let ((k (make-sparse-keymap)))
