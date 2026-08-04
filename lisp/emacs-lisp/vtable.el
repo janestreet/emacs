@@ -289,7 +289,8 @@ compared with `equal'), signal an error.
 TABLE must be at point in the current buffer."
   (unless old-object
     (setq old-object object))
-  (let ((objects (vtable-objects table)))
+  (let* ((objects (vtable-objects table))
+         (inhibit-read-only t))
     ;; First replace the object in the object storage.
     (if (eq old-object (car objects))
         ;; It's at the head, so replace it there.
@@ -302,32 +303,44 @@ TABLE must be at point in the current buffer."
       (unless (cdr objects)
         (error "Can't find the old object"))
       (setcar (cdr objects) object))
-    ;; Then update the rendered vtable in its buffer.
+    ;; Then update the rendered vtable in the current buffer.
     (if-let* ((cache (vtable--current-cache table))
               (line-number (seq-position (vtable--cache-lines cache)
                                          old-object
                                          (lambda (a b)
                                            (equal (car a) b))))
               (line (elt (vtable--cache-lines cache) line-number)))
-        (with-current-buffer (vtable-buffer table)
-          (let ((inhibit-read-only t)
-                (inhibit-modification-hooks t))
-            (setcar line object)
-            (setcdr line (vtable--compute-cached-line table object))
-            ;; ... and redisplay the line in question.
+        (progn
+          (setcar line object)
+          (setcdr line (vtable--compute-cached-line table object))
+          ;; ... and redisplay the line in question.
+          (let* ((start (save-excursion
+                          (vtable-goto-object old-object)))
+                 (end (save-excursion
+                        (goto-char start)
+                        (pos-bol 2)))
+                 ;; If point is in the deleted region, `save-excursion' won't preserve it;
+                 ;; manually save its current line and column to restore afterwards.
+                 (saved-line-and-col
+                  (when (<= start (point) end)
+                    (cons (line-number-at-pos) (current-column))))
+                 (keymap (get-text-property start 'keymap)))
             (save-excursion
-              (vtable-goto-object old-object)
-              (let ((keymap (get-text-property (point) 'keymap))
-                    (start (point)))
-                (delete-line)
-                (vtable--insert-line table line line-number
-                                     (vtable--cache-widths cache)
-                                     (vtable--spacer table))
-                (add-text-properties start (point) (list 'keymap keymap
-                                                         'vtable table))))
-            ;; We may have inserted a non-numerical value into a previously
-            ;; all-numerical table, so recompute.
-            (vtable--recompute-numerical table (cdr line))))
+              (goto-char start)
+              (delete-region start end)
+              (vtable--insert-line table line line-number
+                                   (vtable--cache-widths cache)
+                                   (vtable--spacer table))
+              (add-text-properties start (point) (list 'keymap keymap
+                                                       'vtable table
+                                                       'vtable-cache cache)))
+            (when saved-line-and-col
+              (goto-char (point-min))
+              (forward-line (1- (car saved-line-and-col)))
+              (move-to-column (cdr saved-line-and-col))))
+          ;; We may have inserted a non-numerical value into a previously
+          ;; all-numerical table, so recompute.
+          (vtable--recompute-numerical table (cdr line)))
       (error "Can't find cached object in vtable"))))
 
 (defun vtable-remove-object (table object)
