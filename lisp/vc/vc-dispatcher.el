@@ -281,27 +281,28 @@ CODE.  Otherwise, add CODE to the process's sentinel."
                ((not (buffer-live-p buf))
                 (remove-function (process-sentinel proc) fun))
                ((memq (process-status proc) '(exit signal))
-                (with-current-buffer buf
-                  (setq mode-line-process nil)
-                  (let (vc-sentinel-movepoint
-                        (m (process-mark proc)))
-                    ;; Normally, we want async code such as sentinels to
-                    ;; not move point.
-                    (save-excursion
-                      (goto-char m)
-                      ;; Each sentinel may move point and the next one
-                      ;; should be run from that new position.
-                      ;; Handling this up here, instead of requiring
-                      ;; CODE to handle it, means CODE can be written
-                      ;; for both sync and async processes.
-                      (funcall eval-code)
-                      (move-marker m (point)))
-                    ;; But sometimes the sentinels really want to move point.
-                    (when vc-sentinel-movepoint
-                      (if-let* ((win (get-buffer-window (current-buffer) 0)))
-                          (with-selected-window win
-		            (goto-char vc-sentinel-movepoint))
-                        (goto-char vc-sentinel-movepoint))))))
+                (with-demoted-errors "Error in `vc-exec-after' function: %S"
+                  (with-current-buffer buf
+                    (setq mode-line-process nil)
+                    (let (vc-sentinel-movepoint
+                          (m (process-mark proc)))
+                      ;; Normally, we want async code such as sentinels to
+                      ;; not move point.
+                      (save-excursion
+                        (goto-char m)
+                        ;; Each sentinel may move point and the next one
+                        ;; should be run from that new position.
+                        ;; Handling this up here, instead of requiring
+                        ;; CODE to handle it, means CODE can be written
+                        ;; for both sync and async processes.
+                        (funcall eval-code)
+                        (move-marker m (point)))
+                      ;; But sometimes the sentinels really want to move point.
+                      (when vc-sentinel-movepoint
+                        (if-let* ((win (get-buffer-window (current-buffer) 0)))
+                            (with-selected-window win
+		              (goto-char vc-sentinel-movepoint))
+                          (goto-char vc-sentinel-movepoint)))))))
                ((not (eq (process-status proc) 'run))
                 (remove-function (process-sentinel proc) fun)
                 (error "Unexpected process state"))))))
