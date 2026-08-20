@@ -2480,6 +2480,28 @@ shadow_lookup (Lisp_Object keymap, Lisp_Object key, Lisp_Object accept_default,
 
 static Lisp_Object Vmouse_events;
 
+/* Insert SEQUENCE into SEQUENCES, which is sorted descending by length.
+   Ties are resolved by inserting SEQUENCE earliest.  */
+static Lisp_Object
+insert_sequence_by_len_desc (Lisp_Object sequence, Lisp_Object sequences)
+{
+  ptrdiff_t len = ASIZE (sequence);
+  Lisp_Object prev = Qnil, tail = sequences;
+
+  while (CONSP (tail) && ASIZE (XCAR (tail)) > len)
+    {
+      prev = tail;
+      tail = XCDR (tail);
+    }
+
+  Lisp_Object cell = Fcons (sequence, tail);
+  if (NILP (prev))
+    return cell;
+
+  XSETCDR (prev, cell);
+  return sequences;
+}
+
 struct where_is_internal_data {
   Lisp_Object definition, this, last;
   bool last_is_meta, noindirect;
@@ -2601,6 +2623,10 @@ If FIRSTONLY has another non-nil value, prefer bindings
 that use the modifier key specified in `where-is-preferred-modifier'
 \(or their meta variants) and entirely reject menu bindings.
 
+The key sequences are searched in increasing order of length, so the
+first key sequence found is typically the shortest (but may not be,
+depending on a preferred modifier key or advertised bindings).
+
 If optional 4th arg NOINDIRECT is non-nil, don't extract the commands inside
 menu-items.  This makes it possible to search for a menu-item itself.
 
@@ -2690,7 +2716,7 @@ symbol property are ignored.  */)
 	 /* If we're at the end of the `sequences' list and we haven't
 	    considered remapped sequences yet, copy them over and
 	    process them.  */
-	 || (!remapped && (sequences = remapped_sequences,
+	 || (!remapped && (sequences = Fnreverse (remapped_sequences),
 			   remapped = true,
 			   CONSP (sequences))))
     {
@@ -2722,7 +2748,12 @@ symbol property are ignored.  */)
 	{
 	  Lisp_Object seqs = where_is_internal (function, keymaps,
 						!NILP (noindirect), nomenus);
-	  remapped_sequences = nconc2 (Freverse (seqs), remapped_sequences);
+	  while (CONSP (seqs))
+	    {
+	      remapped_sequences =
+		insert_sequence_by_len_desc (XCAR (seqs), remapped_sequences);
+	      seqs = XCDR (seqs);
+	    }
 	  continue;
 	}
 
@@ -2824,10 +2855,14 @@ where_is_internal_1 (Lisp_Object key, Lisp_Object binding, Lisp_Object args, voi
   if (!NILP (where_is_cache))
     {
       Lisp_Object sequences = Fgethash (binding, where_is_cache, Qnil);
-      Fputhash (binding, Fcons (sequence, sequences), where_is_cache);
+      /* During cache filling, it is okay to mutate the lists.  */
+      Fputhash (binding,
+		insert_sequence_by_len_desc (sequence, sequences),
+		where_is_cache);
     }
   else
-    d->sequences = Fcons (sequence, d->sequences);
+    /* TODO: tests */
+    d->sequences = insert_sequence_by_len_desc (sequence, d->sequences);
 }
 
 /* describe-bindings - summarizing all the bindings in a set of keymaps.  */
