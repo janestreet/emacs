@@ -1520,22 +1520,17 @@ Otherwise, return a new string."
                 (goto-char orig-point)
                 (delete-char 2)
                 (let* ((fun (intern (buffer-substring (point) (1- end-point))))
-                       (keys (with-current-buffer orig-buf
+                       (key (with-current-buffer orig-buf
                               (where-is-internal fun
                                                  (and keymap
-                                                      (list keymap)))))
-                       key)
+                                                      (list keymap))
+                                                 t))))
                   ;; If we're looking in a particular keymap which has
                   ;; no binding, then we need to redo the lookup, with
                   ;; the global map as well this time.
-                  (when (and (not keys) keymap)
-                    (setq keys (with-current-buffer orig-buf
-                                (where-is-internal fun keymap))))
-                  (when keys
-                    (setq key (car keys))
-                    (dolist (other (cdr keys))
-                      (when (< (length other) (length key))
-                        (setq key other))))
+                  (when (and (not key) keymap)
+                    (setq key (with-current-buffer orig-buf
+                                (where-is-internal fun keymap t))))
                   (if (not key)
                       ;; Function is not on any key.
                       (let ((op (point)))
