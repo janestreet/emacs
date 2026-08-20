@@ -302,6 +302,22 @@ commit 86c19714b097aa477d339ed99ffb5136c755a046."
             (where-is-internal 'execute-extended-command global-map t))
           [#x8000078])))
 
+(ert-deftest keymap-where-is-internal/shortest-first-across-keymaps ()
+  (let ((map1 (define-keymap "x" 'foo))
+        (map2 (define-keymap "y z" 'foo)))
+    (should (equal (where-is-internal 'foo (list map1 map2))
+                   (list [?x] [?y ?z])))
+    (should (equal (where-is-internal 'foo (list map2 map1))
+                   (list [?x] [?y ?z])))
+    (should (equal (where-is-internal 'foo (list map1 map2) t) [?x]))
+    (should (equal (where-is-internal 'foo (list map2 map1) t) [?x]))
+
+    ;; `where-is-preferred-modifier' is more important than length
+    (keymap-set map1 "s-f s-o s-o" 'foo)
+    (let ((where-is-preferred-modifier 'super))
+      (should (equal (where-is-internal 'foo (list map1 map2) t) (kbd "s-f s-o s-o")))
+      (should (equal (where-is-internal 'foo (list map2 map1) t) (kbd "s-f s-o s-o"))))))
+
 
 ;;;; describe_vector
 
