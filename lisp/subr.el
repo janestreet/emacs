@@ -7222,9 +7222,7 @@ NEW-MESSAGE, if non-nil, sets a new message for the reporter."
   (let ((parameters (cdr reporter)))
     (when new-message
       (aset parameters 3 new-message))
-    (when (aref parameters 0)
-      (aset parameters 0 (float-time)))
-    (progress-reporter-do-update reporter value update-text)))
+    (progress-reporter-do-update reporter value update-text 'force)))
 
 (defvar progress-reporter--pulse-characters ["-" "\\" "|" "/"]
   "Characters to use for pulsing progress reporters.")
@@ -7255,14 +7253,15 @@ area is busy with something else."
         ('done
          (message "%sdone" text))))))
 
-(defun progress-reporter-do-update (reporter value &optional update-text)
+(defun progress-reporter-do-update (reporter value &optional update-text force)
   (let* ((parameters      (cdr reporter))
 	 (update-time     (aref parameters 0))
 	 (min-value       (aref parameters 1))
 	 (max-value       (aref parameters 2))
 	 (enough-time-passed
 	  ;; See if enough time has passed since the last update.
-	  (or (not update-time)
+	  (or force
+              (not update-time)
 	      (when (time-less-p update-time nil)
 		;; Calculate time for the next update
 		(aset parameters 0 (+ update-time (aref parameters 5)))))))
