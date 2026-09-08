@@ -1529,52 +1529,55 @@ uses OVERLAY."
    (run-with-idle-timer
     0.2 nil
     (lambda ()
-      (let* ((default-directory
-	      (buffer-local-value 'default-directory
-				  (overlay-buffer overlay)))
-	     (display-buffer-overriding-action
-              '(display-buffer-no-window (allow-no-window . t)))
-	     (enable-local-variables
-              (if (memq enable-local-variables '(:safe :all nil))
-		  enable-local-variables
-		;; Ignore other values that query.
-		:safe))
-             (unknown (propertize "<<unknown>>" 'face 'vc-dir-header-value))
-             (buf (generate-new-buffer " *temp*" t))
-             proc)
-        (with-current-buffer buf
-          (condition-case _
-              (progn
-                (vc-incoming-outgoing-internal backend nil
-                                               (current-buffer) 'log-outgoing)
-                (setq proc (get-buffer-process (current-buffer)))
-                (set-process-query-on-exit-flag proc nil)
-                (overlay-put overlay 'proc proc)
-                (vc-run-delayed
-                  (unwind-protect
-                      (overlay-put
-                       overlay 'after-string
-                       (if (or (not (eq (process-status proc) 'exit))
-                               (plusp (process-exit-status proc)))
-                           unknown
-                         (goto-char (point-min))
-                         (let ((count (how-many log-view-message-re)))
-                           (if (zerop count)
-                               (propertize "No unpushed revisions"
-                                           'face 'vc-dir-header-value)
-                             (propertize
-                              (format (ngettext "%d unpushed revision"
-                                                "%d unpushed revisions"
-                                                count)
-                                      count)
-                              'face 'vc-dir-header-urgent-value
-                              'mouse-face 'highlight
-                              'keymap vc-dir-outgoing-revisions-map
-                              'help-echo "\\<vc-dir-outgoing-revisions-map>\
+      ;; If `vc-dir--set-header' was called again before our sentinel
+      ;; ran (either because we were still counting or Emacs just hadn't
+      ;; run the sentinel yet) then the overlay won't exist anymore.
+      (when-let* ((buffer (overlay-buffer overlay)))
+        (let* ((default-directory
+	        (buffer-local-value 'default-directory buffer))
+	       (display-buffer-overriding-action
+                '(display-buffer-no-window (allow-no-window . t)))
+	       (enable-local-variables
+                (if (memq enable-local-variables '(:safe :all nil))
+		    enable-local-variables
+		  ;; Ignore other values that query.
+		  :safe))
+               (unknown (propertize "<<unknown>>" 'face 'vc-dir-header-value))
+               (buf (generate-new-buffer " *temp*" t))
+               proc)
+          (with-current-buffer buf
+            (condition-case _
+                (progn
+                  (vc-incoming-outgoing-internal backend nil
+                                                 (current-buffer) 'log-outgoing)
+                  (setq proc (get-buffer-process (current-buffer)))
+                  (set-process-query-on-exit-flag proc nil)
+                  (overlay-put overlay 'proc proc)
+                  (vc-run-delayed
+                    (unwind-protect
+                        (overlay-put
+                         overlay 'after-string
+                         (if (or (not (eq (process-status proc) 'exit))
+                                 (plusp (process-exit-status proc)))
+                             unknown
+                           (goto-char (point-min))
+                           (let ((count (how-many log-view-message-re)))
+                             (if (zerop count)
+                                 (propertize "No unpushed revisions"
+                                             'face 'vc-dir-header-value)
+                               (propertize
+                                (format (ngettext "%d unpushed revision"
+                                                  "%d unpushed revisions"
+                                                  count)
+                                        count)
+                                'face 'vc-dir-header-urgent-value
+                                'mouse-face 'highlight
+                                'keymap vc-dir-outgoing-revisions-map
+                                'help-echo "\\<vc-dir-outgoing-revisions-map>\
 \\[vc-root-log-outgoing]: List outgoing revisions")))))
-                    (kill-buffer))))
-            (error (overlay-put overlay 'after-string unknown)
-                   (kill-buffer buf)))))))))
+                      (kill-buffer))))
+              (error (overlay-put overlay 'after-string unknown)
+                     (kill-buffer buf))))))))))
 
 (defvar-local vc-dir-async-header-values
   '(("Outgoing" . vc-dir--count-outgoing))
