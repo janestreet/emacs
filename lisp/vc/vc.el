@@ -4685,29 +4685,58 @@ BACKEND is the VC backend."
   ;; Do store `nil', before signaling an error, if there is no incoming
   ;; revision, because that's also something that can be slow to
   ;; determine and so should be remembered.
+  ;; Similarly cache failures because of how every refresh of VC-Dir
+  ;; calls us, via `vc-dir--set-header' and `vc-dir--count-outgoing':
+  ;; finding the incoming revision is always synchronous and so if the
+  ;; fetch times out or the user decides to C-g it, we want to avoid
+  ;; trying again, synchronously and probably fruitlessly, when VC-Dir
+  ;; is refreshed.  Ignore cached failures when `non-essential' is nil
+  ;; so that interactive callers always retry the failure.
   ;;
   ;; Try to use the current branch name instead of `nil' as a key into
   ;; the cache, because otherwise we would need to clear the cache when
   ;; the user switches branches, but we don't have a good way of knowing
   ;; when that happens.  Use a cons cell for a separate namespace.
-  (let ((key
-         (if-let* ((_ (null upstream-location))
-                   (branch (vc-call-backend backend 'working-branch)))
-             (cons 'branch branch)
-           upstream-location)))
-    (or (if-let* ((_ (not refresh))
-                  (record
-                   (assoc key
-                          (vc--repo-getprop backend
-                                            'vc-incoming-revision))))
-            (cdr record)
-          (let ((res (vc-call-backend backend 'incoming-revision
-                                      upstream-location refresh))
-                (alist (vc--repo-getprop backend
-                                         'vc-incoming-revision)))
-            (prog1 (setf (alist-get key alist nil nil #'equal) res)
-              (vc--repo-setprop backend 'vc-incoming-revision alist))))
-        (user-error "No incoming revision -- local-only branch?"))))
+  (cond*
+   ((bind*
+     (key (if-let* ((_ (null upstream-location))
+                    (branch (vc-call-backend backend 'working-branch)))
+              (cons 'branch branch)
+            upstream-location))
+     (rec (and (not refresh)
+               (assoc key
+                      (vc--repo-getprop backend
+                                        'vc-incoming-revision))))))
+   ((and rec (null (cdr rec)))
+    (user-error "No incoming revision -- local-only branch?"))
+   ((and rec (atom (cdr rec)))
+    (cdr rec))
+   ((and rec non-essential)
+    (error "Previous attempt to find incoming revision failed, \
+not trying again: %s" (error-message-string (cdr rec))))
+   ((bind*
+     (msg (substitute-command-keys "\
+Finding incoming revision ... (\\[keyboard-quit] to skip)"))
+     (res (condition-case-unless-debug err
+              ;; `vc-dir--count-outgoing' calls us from an idle timer
+              ;; which binds `inhibit-quit' to non-nil.
+              (let ((inhibit-quit nil))
+                (with-delayed-message (2 msg)
+                  (vc-call-backend backend 'incoming-revision
+                                   upstream-location refresh)))
+            ((error quit) err)))
+     (alist (vc--repo-getprop backend 'vc-incoming-revision))
+     (rec (assoc key alist))))
+   ;; Don't overwrite a useful cached value with an error.
+   ((not (and rec (atom (cdr rec)) (consp res)))
+    (setf (alist-get key alist nil nil #'equal) res)
+    (vc--repo-setprop backend 'vc-incoming-revision alist)
+    :non-exit)
+   ((consp res)
+    (error "Attempt to find incoming revision failed: %s"
+           (error-message-string res)))
+   (res)
+   (t (user-error "No incoming revision -- local-only branch?"))))
 
 ;;;###autoload
 (defun vc-root-log-incoming (&optional upstream-location)
