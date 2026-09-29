@@ -1933,7 +1933,13 @@ cleaning up all windows currently displaying the buffer to be killed. */)
     specpdl_ref count = SPECPDL_INDEX ();
     bool modified;
 
-    record_unwind_protect_excursion ();
+    /* Also save point if killing the current buffer, for backwards
+       compatibility (Bug#NNNNN). */
+    if (current_buffer == b)
+      record_unwind_protect_excursion ();
+    else
+      record_unwind_current_buffer ();
+
     set_buffer_internal (b);
 
     /* First run the query functions; if any query is answered no,
