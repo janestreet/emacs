@@ -3579,6 +3579,11 @@ command for reporting bugs).
 *** The elint.el package is now obsolete.
 Use the byte-compiler instead; it provides more and more useful warnings.
 
+---
+*** 'browse-url-chromium' and 'browse-url-chrome' can open new windows.
+These functions no longer ignore the browse-url-new-window-flag user
+option and the NEW-WINDOW optional argument.
+
 
 * New Modes and Packages in Emacs 31.1
 
