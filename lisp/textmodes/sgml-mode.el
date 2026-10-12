@@ -2423,6 +2423,7 @@ To work around that, do:
   (setq-local sgml-face-tag-alist html-face-tag-alist)
   (setq-local sgml-tag-help html-tag-help)
   (setq-local sgml-whitespace-sensitive-tags '("pre" "textarea"))
+  (setq-local comment-line-break-function #'comment-indent-new-line)
   (setq-local outline-regexp "^.*<[Hh][1-6]\\>")
   (setq-local outline-heading-end-regexp "</[Hh][1-6]>")
   (setq-local outline-level
