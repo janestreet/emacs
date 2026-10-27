@@ -5632,7 +5632,8 @@ to provide the `find-revision' operation instead."
 
 (defun vc-default-show-log-entry (_backend rev)
   (with-no-warnings (log-view-goto-rev rev))
-  (when (eq vc-log-view-type 'long)
+  (when (and (eq vc-log-view-type 'long)
+             (eq (window-buffer) (current-buffer)))
     (recenter-top-bottom 0)))
 
 (defun vc-default-comment-history (backend file)
