@@ -2104,6 +2104,17 @@ Whitespace differences are ignored."
 
 (define-obsolete-function-alias 'diff-xor #'xor "27.1")
 
+(defun diff--fringe-deletion-p (match-old match-new buf)
+  "Does the matches in BUF indicate a fringe deletion?"
+  ;; See bug#82097
+
+  (and (or (and (= (car match-old) 1)   ;topmost?
+                (= (cdr match-old) (cdr match-new)))
+           (and (= (cdr match-old) (1+ (buffer-size buf))) ;bottommost?
+                (= (car match-old) (car match-new))))
+       (< (- (cdr match-new) (car match-new))
+          (- (cdr match-old) (car match-old)))))
+
 (defun diff-find-source-location (&optional other-file reverse noprompt)
   "Find current diff location within the source file.
 OTHER-FILE, if non-nil, means to look at the diff's name and line
@@ -2167,11 +2178,13 @@ SWITCHED is non-nil if the patch is already applied."
         (goto-char (point-min)) (forward-line (1- (string-to-number line)))
 	(let* ((orig-pos (point))
 	       (switched nil)
-	       (maybe-old (diff-find-text (car old)))
-	       (maybe-new (diff-find-text (car new)))
-	       (pos (or (and maybe-new maybe-old (null reverse) (setq switched t) maybe-new)
-			maybe-old
-			(progn (setq switched t) maybe-new)
+	       (match-old (diff-find-text (car old)))
+	       (match-new (diff-find-text (car new)))
+	       (pos (or (and match-new match-old (null reverse)
+                             (null (diff--fringe-deletion-p match-old match-new buf))
+                             (setq switched t) match-new)
+			match-old
+			(progn (setq switched t) match-new)
 			(progn (setq switched nil)
 			       (condition-case nil
 				   (diff-find-approx-text (car old))
