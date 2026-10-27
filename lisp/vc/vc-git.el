@@ -2032,7 +2032,8 @@ or BRANCH^ (where \"^\" can be repeated)."
                    (1+ (length (match-string 0 revision))))
                   (t nil))))
     (beginning-of-line)
-    (when (eq vc-log-view-type 'long)
+    (when (and (eq vc-log-view-type 'long)
+               (eq (window-buffer) (current-buffer)))
       (recenter-top-bottom 0))))
 
 (defun vc-git-expanded-log-entry (revision)
