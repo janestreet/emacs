@@ -454,6 +454,10 @@ program.
 emergency escape---but there are cases where it won't work, when a
 system call hangs or when Emacs is stuck in a tight loop in C code.
 
+  Emergency escape is not available in graphical frames, or in text-mode
+frames where the terminal emulator supports the Kitty Keyboard Protocol
+and you have not disabled use of that protocol (@pxref{Terminal Init}).
+
 @node DEL Does Not Delete
 @subsection If @key{DEL} Fails to Delete
 @cindex @key{DEL} vs @key{BACKSPACE}
