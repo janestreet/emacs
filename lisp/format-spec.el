@@ -24,6 +24,8 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'subr-x))
+
 ;;;###autoload
 (defun format-spec (format specification &optional ignore-missing split)
   "Return a string based on FORMAT and SPECIFICATION.
@@ -88,7 +90,7 @@ any occurrences of \"%%\" in FORMAT verbatim in the result.
 If SPLIT, instead of returning a single string, a list of strings
 is returned, where each format spec is its own element."
   (let ((orig-buffer (current-buffer)))
-    (with-temp-buffer
+    (with-work-buffer
       (let ((split-start (point-min))
             (split-result nil))
         (insert format)
