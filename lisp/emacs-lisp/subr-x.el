@@ -315,7 +315,8 @@ When this limit is exceeded, newly allocated work buffers are
 automatically killed, which means that in a such case
 `with-work-buffer' becomes equivalent to `with-temp-buffer'.")
 
-(defsubst work-buffer--get ()
+;;;###autoload
+(defun work-buffer--get ()
   "Get a work buffer."
   (let ((buffer (pop work-buffer--list)))
     (if (buffer-live-p buffer)
